@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>App Architecture</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      background: #fff;
+      font-family: 'Comic Sans MS', 'Chalkboard SE', cursive; /* whiteboard feel */
+      padding: 40px;
+      min-height: 100vh;
+    }
+
+    svg {
+      width: 100%;
+      max-width: 900px;
+      display: block;
+      margin: 0 auto;
+    }
+
+    /* Rough hand-drawn box style */
+    .box {
+      fill: #fff;
+      stroke: #111;
+      stroke-width: 2.5;
+      rx: 6;
+    }
+
+    .box-blue   { fill: #EBF4FF; stroke: #2563EB; }
+    .box-green  { fill: #ECFDF5; stroke: #059669; }
+    .box-red    { fill: #FFF1F1; stroke: #8B1A1A; }
+    .box-yellow { fill: #FEFCE8; stroke: #CA8A04; }
+    .box-grey   { fill: #F3F4F6; stroke: #6B7280; }
+
+    text {
+      font-family: 'Comic Sans MS', 'Chalkboard SE', cursive;
+      fill: #111;
+    }
+
+    .label      { font-size: 15px; font-weight: bold; }
+    .sublabel   { font-size: 12px; fill: #555; }
+    .section    { font-size: 13px; font-weight: bold; fill: #333; }
+    .arrow      { stroke: #333; stroke-width: 2; fill: none; marker-end: url(#arrow); }
+    .arrow-blue { stroke: #2563EB; stroke-width: 2; fill: none; marker-end: url(#arrow-blue); }
+  </style>
+</head>
+<body>
+<svg viewBox="0 0 900 560" xmlns="http://www.w3.org/2000/svg">
+
+  <!-- Arrow markers -->
+  <defs>
+    <marker id="arrow" markerWidth="10" markerHeight="7" refX="10" refY="3.5" orient="auto">
+      <polygon points="0 0, 10 3.5, 0 7" fill="#333"/>
+    </marker>
+    <marker id="arrow-blue" markerWidth="10" markerHeight="7" refX="10" refY="3.5" orient="auto">
+      <polygon points="0 0, 10 3.5, 0 7" fill="#2563EB"/>
+    </marker>
+  </defs>
+
+  <!-- ── LAYER LABELS ── -->
+  <text x="18" y="55" class="section" transform="rotate(-90,18,55)" text-anchor="middle" fill="#999">BROWSER</text>
+  <text x="18" y="230" class="section" transform="rotate(-90,18,230)" text-anchor="middle" fill="#999">SERVER</text>
+  <text x="18" y="430" class="section" transform="rotate(-90,18,430)" text-anchor="middle" fill="#999">DATABASE</text>
+
+  <!-- Divider lines -->
+  <line x1="40" y1="155" x2="880" y2="155" stroke="#ccc" stroke-width="1.5" stroke-dasharray="6,4"/>
+  <line x1="40" y1="340" x2="880" y2="340" stroke="#ccc" stroke-width="1.5" stroke-dasharray="6,4"/>
+
+  <!-- ══════════════════════════════════════════
+       LAYER 1 — BROWSER (Frontend)
+  ══════════════════════════════════════════ -->
+
+  <!-- login.html -->
+  <rect x="55" y="30" width="120" height="60" rx="6" class="box box-blue"/>
+  <text x="115" y="55" class="label" text-anchor="middle">login.html</text>
+  <text x="115" y="73" class="sublabel" text-anchor="middle">School no. input</text>
+  <text x="115" y="86" class="sublabel" text-anchor="middle">Student / Staff btn</text>
+
+  <!-- menu.html -->
+  <rect x="215" y="30" width="120" height="60" rx="6" class="box box-blue"/>
+  <text x="275" y="55" class="label" text-anchor="middle">menu.html</text>
+  <text x="275" y="73" class="sublabel" text-anchor="middle">Item grid + qty</text>
+  <text x="275" y="86" class="sublabel" text-anchor="middle">Break toggle</text>
+
+  <!-- confirm.html -->
+  <rect x="375" y="30" width="120" height="60" rx="6" class="box box-blue"/>
+  <text x="435" y="55" class="label" text-anchor="middle">confirm.html</text>
+  <text x="435" y="73" class="sublabel" text-anchor="middle">Order summary</text>
+  <text x="435" y="86" class="sublabel" text-anchor="middle">Confirm / Cancel</text>
+
+  <!-- success.html -->
+  <rect x="535" y="30" width="120" height="60" rx="6" class="box box-green"/>
+  <text x="595" y="55" class="label" text-anchor="middle">success.html</text>
+  <text x="595" y="73" class="sublabel" text-anchor="middle">Receipt display</text>
+  <text x="595" y="86" class="sublabel" text-anchor="middle">Session cleared</text>
+
+  <!-- staff.html -->
+  <rect x="695" y="30" width="120" height="60" rx="6" class="box box-red"/>
+  <text x="755" y="55" class="label" text-anchor="middle">staff.html</text>
+  <text x="755" y="73" class="sublabel" text-anchor="middle">Order dashboard</text>
+  <text x="755" y="86" class="sublabel" text-anchor="middle">Filter + collected</text>
+
+  <!-- sessionStorage label -->
+  <rect x="195" y="108" width="280" height="28" rx="4" class="box box-yellow"/>
+  <text x="335" y="127" class="sublabel" text-anchor="middle" font-weight="bold">sessionStorage — student, cart, break</text>
+
+  <!-- arrows from pages to sessionStorage -->
+  <line x1="175" y1="90" x2="270" y2="108" class="arrow"/>
+  <line x1="275" y1="90" x2="310" y2="108" class="arrow"/>
+  <line x1="435" y1="90" x2="400" y2="108" class="arrow"/>
+
+  <!-- ══════════════════════════════════════════
+       LAYER 2 — SERVER (Express / Node.js)
+  ══════════════════════════════════════════ -->
+
+  <!-- Express server box -->
+  <rect x="55" y="175" width="780" height="140" rx="8" class="box box-grey"/>
+  <text x="445" y="197" class="label" text-anchor="middle">server.js — Express / Node.js</text>
+
+  <!-- API route boxes inside -->
+  <rect x="75" y="210" width="140" height="50" rx="5" class="box box-blue"/>
+  <text x="145" y="231" class="sublabel" text-anchor="middle" font-weight="bold">GET /api/student/:id</text>
+  <text x="145" y="248" class="sublabel" text-anchor="middle">Look up student</text>
+
+  <rect x="230" y="210" width="140" height="50" rx="5" class="box box-blue"/>
+  <text x="300" y="231" class="sublabel" text-anchor="middle" font-weight="bold">GET /api/menu</text>
+  <text x="300" y="248" class="sublabel" text-anchor="middle">Return all items</text>
+
+  <rect x="385" y="210" width="140" height="50" rx="5" class="box box-green"/>
+  <text x="455" y="231" class="sublabel" text-anchor="middle" font-weight="bold">POST /api/order</text>
+  <text x="455" y="248" class="sublabel" text-anchor="middle">Save new order</text>
+
+  <rect x="540" y="210" width="140" height="50" rx="5" class="box box-red"/>
+  <text x="610" y="231" class="sublabel" text-anchor="middle" font-weight="bold">GET /api/orders</text>
+  <text x="610" y="248" class="sublabel" text-anchor="middle">All orders (staff)</text>
+
+  <rect x="695" y="210" width="125" height="50" rx="5" class="box box-red"/>
+  <text x="757" y="231" class="sublabel" text-anchor="middle" font-weight="bold">PUT /api/orders</text>
+  <text x="757" y="248" class="sublabel" text-anchor="middle">/:id/collected</text>
+
+  <!-- HTTP label -->
+  <text x="445" y="295" class="sublabel" text-anchor="middle" fill="#888">↑ ↓  HTTP JSON requests / responses  ↑ ↓</text>
+
+  <!-- ══════════════════════════════════════════
+       LAYER 3 — DATABASE (SQLite)
+  ══════════════════════════════════════════ -->
+
+  <!-- database.js wrapper -->
+  <rect x="55" y="355" width="780" height="165" rx="8" class="box box-yellow"/>
+  <text x="445" y="377" class="label" text-anchor="middle">database.js — SQLite (node:sqlite)</text>
+
+  <!-- students table -->
+  <rect x="75" y="390" width="220" height="110" rx="5" class="box box-grey"/>
+  <text x="185" y="410" class="label" text-anchor="middle">students</text>
+  <text x="185" y="430" class="sublabel" text-anchor="middle">school_number (TEXT)</text>
+  <text x="185" y="447" class="sublabel" text-anchor="middle">name (TEXT)</text>
+  <text x="185" y="464" class="sublabel" text-anchor="middle">photo_url (TEXT)</text>
+
+  <!-- menu_items table -->
+  <rect x="325" y="390" width="220" height="110" rx="5" class="box box-grey"/>
+  <text x="435" y="410" class="label" text-anchor="middle">menu_items</text>
+  <text x="435" y="430" class="sublabel" text-anchor="middle">name (TEXT)</text>
+  <text x="435" y="447" class="sublabel" text-anchor="middle">price (REAL)</text>
+  <text x="435" y="464" class="sublabel" text-anchor="middle">available (INTEGER 0/1)</text>
+
+  <!-- orders table -->
+  <rect x="575" y="390" width="240" height="110" rx="5" class="box box-grey"/>
+  <text x="695" y="410" class="label" text-anchor="middle">orders</text>
+  <text x="695" y="430" class="sublabel" text-anchor="middle">school_number (TEXT)</text>
+  <text x="695" y="447" class="sublabel" text-anchor="middle">break_time · items · total</text>
+  <text x="695" y="464" class="sublabel" text-anchor="middle">date (TEXT)</text>
+  <text x="695" y="481" class="sublabel" text-anchor="middle">collected (INTEGER 0/1)</text>
+
+  <!-- Arrows: server to DB -->
+  <line x1="185" y1="315" x2="185" y2="355" class="arrow"/>
+  <line x1="435" y1="315" x2="435" y2="355" class="arrow"/>
+  <line x1="695" y1="315" x2="695" y2="355" class="arrow"/>
+
+  <!-- Arrows: browser to server -->
+  <line x1="115" y1="90" x2="115" y2="175" class="arrow"/>
+  <line x1="275" y1="90" x2="300" y2="175" class="arrow"/>
+  <line x1="435" y1="90" x2="455" y2="175" class="arrow"/>
+  <line x1="755" y1="90" x2="755" y2="175" class="arrow"/>
+
+</svg>
+</body>
+</html>

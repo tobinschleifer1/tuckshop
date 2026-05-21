@@ -1,0 +1,12 @@
+{
+  "name": "tuckshop",
+  "version": "1.0.0",
+  "description": "Rathkeale College Tuck Shop Pre-order System - Alpha",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "express": "^4.18.2"
+  }
+}

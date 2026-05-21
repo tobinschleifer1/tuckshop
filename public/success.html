@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Tuck Shop — Order Confirmed</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <!-- Success page — shown after an order is placed successfully -->
+
+  <div class="app-shell">
+    <header class="top-bar">
+      <h1>Order Confirmed</h1>
+    </header>
+
+    <main class="page-content centered">
+      <div class="card success-card">
+
+        <!-- Green tick icon -->
+        <div class="success-icon">✓</div>
+        <h2 class="success-heading">You're all set!</h2>
+        <p class="success-sub">Your order has been placed. Pick it up at the tuck shop.</p>
+
+        <hr class="divider-line" />
+
+        <!-- Full receipt -->
+        <div class="receipt">
+          <div class="confirm-row">
+            <span class="confirm-label">Name</span>
+            <span id="receiptName"></span>
+          </div>
+          <div class="confirm-row">
+            <span class="confirm-label">Break</span>
+            <span id="receiptBreak"></span>
+          </div>
+
+          <hr class="divider-line" />
+
+          <!-- Itemised list -->
+          <div id="receiptItems"></div>
+
+          <hr class="divider-line" />
+
+          <div class="confirm-row total-row">
+            <span>Total</span>
+            <span id="receiptTotal" class="total-red"></span>
+          </div>
+        </div>
+      </div>
+
+      <button class="btn btn-primary" onclick="window.location.href='login.html'">Back to Menu</button>
+    </main>
+  </div>
+
+  <script>
+    // Load the last order from sessionStorage to build the receipt
+    const student = JSON.parse(sessionStorage.getItem('student'));
+    const order = JSON.parse(sessionStorage.getItem('lastOrder'));
+
+    if (!student || !order) {
+      window.location.href = 'login.html';
+    }
+
+    // Fill in student details
+    document.getElementById('receiptName').textContent = student.name;
+    document.getElementById('receiptBreak').textContent =
+      order.break_time === 'morning_tea' ? 'Morning Tea' : 'Lunch';
+
+    // Itemised list
+    const itemsContainer = document.getElementById('receiptItems');
+    order.items.forEach(item => {
+      const row = document.createElement('div');
+      row.className = 'confirm-row';
+      row.innerHTML = `
+        <span>${item.name} × ${item.quantity}</span>
+        <span>$${(item.price * item.quantity).toFixed(2)}</span>
+      `;
+      itemsContainer.appendChild(row);
+    });
+
+    // Total in red as per design spec
+    document.getElementById('receiptTotal').textContent = `$${order.total.toFixed(2)}`;
+
+    // Clear the cart from session so a fresh order starts clean
+    sessionStorage.removeItem('cart');
+    sessionStorage.removeItem('break');
+    sessionStorage.removeItem('lastOrder');
+  </script>
+</body>
+</html>

@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Tuck Shop — Staff Dashboard</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <!-- Staff dashboard — view all orders, filter by break, mark as collected -->
+
+  <div class="app-shell">
+    <header class="top-bar">
+      <h1>Staff Dashboard</h1>
+    </header>
+
+    <main class="page-content">
+
+      <!-- Stat cards — pending and collected counts -->
+      <div class="stat-row">
+        <div class="stat-card card">
+          <div class="stat-number" id="pendingCount">0</div>
+          <div class="stat-label">Pending</div>
+        </div>
+        <div class="stat-card card">
+          <div class="stat-number" id="collectedCount">0</div>
+          <div class="stat-label">Collected</div>
+        </div>
+      </div>
+
+      <!-- Filter tabs -->
+      <div class="filter-tabs">
+        <button class="tab-btn active" data-filter="all">All</button>
+        <button class="tab-btn" data-filter="morning_tea">Morning Tea</button>
+        <button class="tab-btn" data-filter="lunch">Lunch</button>
+      </div>
+
+      <!-- Order cards injected here -->
+      <div id="orderList"></div>
+
+    </main>
+  </div>
+
+  <script>
+    let currentFilter = 'all'; // tracks which tab is active
+
+    // --- Filter tabs ---
+    document.querySelectorAll('.tab-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        currentFilter = btn.dataset.filter;
+        loadOrders();
+      });
+    });
+
+    // --- Load orders from the API ---
+    async function loadOrders() {
+      // Pass the filter as a query param — server handles the filtering
+      const url = currentFilter === 'all'
+        ? '/api/orders'
+        : `/api/orders?break=${currentFilter}`;
+
+      const response = await fetch(url);
+      const orders = await response.json();
+
+      renderOrders(orders);
+      updateStats(orders);
+    }
+
+    // Build the order cards from the orders array
+    function renderOrders(orders) {
+      const list = document.getElementById('orderList');
+      list.innerHTML = ''; // clear before re-render
+
+      if (orders.length === 0) {
+        list.innerHTML = '<p class="empty-msg">No orders yet.</p>';
+        return;
+      }
+
+      orders.forEach(order => {
+        const card = document.createElement('div');
+        // Collected orders are faded out
+        card.className = `order-card card ${order.collected ? 'collected' : ''}`;
+
+        // Build the items list as a string
+        const itemsList = order.items
+          .map(i => `${i.name} × ${i.quantity}`)
+          .join(', ');
+
+        // Format the break time label nicely
+        const breakLabel = order.break_time === 'morning_tea' ? 'Morning Tea' : 'Lunch';
+
+        // Format the date/time
+        const date = new Date(order.date);
+        const timeStr = date.toLocaleTimeString('en-NZ', { hour: '2-digit', minute: '2-digit' });
+
+        card.innerHTML = `
+          <div class="order-card-header">
+            <!-- Student avatar placeholder — first letter of name -->
+            <div class="avatar">${order.school_number.charAt(0)}</div>
+            <div class="order-student-info">
+              <div class="order-school-no">${order.school_number}</div>
+              <div class="order-time">${timeStr}</div>
+            </div>
+            <span class="break-tag ${order.break_time}">${breakLabel}</span>
+          </div>
+
+          <div class="order-items">${itemsList}</div>
+          <div class="order-total">$${order.total.toFixed(2)}</div>
+
+          ${order.collected
+            ? `<div class="collected-badge">Collected</div>`
+            : `<button class="btn btn-success collected-btn" onclick="markCollected(${order.id})">Mark Collected</button>`
+          }
+        `;
+
+        list.appendChild(card);
+      });
+    }
+
+    // Update the pending and collected stat cards
+    function updateStats(orders) {
+      const pending = orders.filter(o => !o.collected).length;
+      const collected = orders.filter(o => o.collected).length;
+      document.getElementById('pendingCount').textContent = pending;
+      document.getElementById('collectedCount').textContent = collected;
+    }
+
+    // Mark an order as collected — calls the API then reloads the list
+    async function markCollected(orderId) {
+      await fetch(`/api/orders/${orderId}/collected`, { method: 'PUT' });
+      loadOrders(); // refresh the list to show the faded state
+    }
+
+    // Load orders on page load
+    loadOrders();
+  </script>
+</body>
+</html>

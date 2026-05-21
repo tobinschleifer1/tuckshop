@@ -1,0 +1,255 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Sprint 1 Planning Board</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: #1B4D2E;
+      padding: 20px;
+      min-height: 100vh;
+    }
+
+    h1 {
+      color: #fff;
+      font-size: 20px;
+      margin-bottom: 16px;
+      font-weight: 600;
+    }
+
+    .board {
+      display: flex;
+      gap: 12px;
+      align-items: flex-start;
+    }
+
+    /* Each column */
+    .col {
+      background: #ebecf0;
+      border-radius: 8px;
+      padding: 10px;
+      width: 220px;
+      flex-shrink: 0;
+    }
+
+    .col-title {
+      font-size: 14px;
+      font-weight: 700;
+      color: #172b4d;
+      margin-bottom: 10px;
+      padding: 0 2px;
+    }
+
+    /* Individual cards */
+    .card {
+      background: #fff;
+      border-radius: 6px;
+      padding: 10px 12px;
+      margin-bottom: 8px;
+      font-size: 13px;
+      color: #172b4d;
+      box-shadow: 0 1px 2px rgba(0,0,0,0.12);
+      border-left: 4px solid transparent;
+      line-height: 1.4;
+    }
+
+    .card .tag {
+      display: inline-block;
+      font-size: 10px;
+      font-weight: 700;
+      padding: 2px 6px;
+      border-radius: 3px;
+      margin-bottom: 5px;
+    }
+
+    .card p { font-size: 12px; color: #5e6c84; margin-top: 4px; }
+
+    /* Colour coding by type */
+    .setup   { border-left-color: #6554C0; }
+    .setup .tag   { background: #EAE6FF; color: #6554C0; }
+
+    .backend  { border-left-color: #0052CC; }
+    .backend .tag  { background: #DEEBFF; color: #0052CC; }
+
+    .frontend { border-left-color: #8B1A1A; }
+    .frontend .tag { background: #FFEBE6; color: #8B1A1A; }
+
+    .done-card { border-left-color: #1B4D2E; }
+    .done-card .tag { background: #E3FCEF; color: #1B4D2E; }
+
+    .test-card { border-left-color: #FF8B00; }
+    .test-card .tag { background: #FFFAE6; color: #FF8B00; }
+  </style>
+</head>
+<body>
+  <h1>Sprint 1 — Alpha Planning Board</h1>
+
+  <div class="board">
+
+    <!-- BACKLOG -->
+    <div class="col">
+      <div class="col-title">📋 Backlog</div>
+
+      <div class="card setup">
+        <span class="tag">Setup</span><br>
+        Project structure
+        <p>Create folders, package.json, install Express</p>
+      </div>
+
+      <div class="card backend">
+        <span class="tag">Backend</span><br>
+        Database setup
+        <p>Create SQLite tables: students, menu_items, orders</p>
+      </div>
+
+      <div class="card backend">
+        <span class="tag">Backend</span><br>
+        Seed data
+        <p>Add sample students and menu items for testing</p>
+      </div>
+
+      <div class="card backend">
+        <span class="tag">Backend</span><br>
+        API routes
+        <p>GET student, GET menu, POST order, GET orders, PUT collected</p>
+      </div>
+
+      <div class="card frontend">
+        <span class="tag">Frontend</span><br>
+        Login page
+        <p>School number input, student/staff login buttons</p>
+      </div>
+
+      <div class="card frontend">
+        <span class="tag">Frontend</span><br>
+        Menu page
+        <p>Item grid, qty controls, break toggle, running total</p>
+      </div>
+
+      <div class="card frontend">
+        <span class="tag">Frontend</span><br>
+        Confirm page
+        <p>Show order summary, confirm + cancel buttons</p>
+      </div>
+
+      <div class="card frontend">
+        <span class="tag">Frontend</span><br>
+        Success page
+        <p>Green tick, itemised receipt, back to menu</p>
+      </div>
+
+      <div class="card frontend">
+        <span class="tag">Frontend</span><br>
+        Staff dashboard
+        <p>Order list, filter tabs, stat cards, collected button</p>
+      </div>
+    </div>
+
+    <!-- IN PROGRESS -->
+    <div class="col">
+      <div class="col-title">🔧 In Progress</div>
+      <!-- empty for sprint 1 start -->
+      <div style="font-size:12px; color:#5e6c84; padding: 6px 2px;">Cards move here during build</div>
+    </div>
+
+    <!-- TESTING -->
+    <div class="col">
+      <div class="col-title">🧪 Testing</div>
+
+      <div class="card test-card">
+        <span class="tag">Test</span><br>
+        Student lookup
+        <p>Enter school number → correct name returned?</p>
+      </div>
+
+      <div class="card test-card">
+        <span class="tag">Test</span><br>
+        Quantity controls
+        <p>Running total updates correctly as qty changes</p>
+      </div>
+
+      <div class="card test-card">
+        <span class="tag">Test</span><br>
+        Place order
+        <p>Order saved to database with correct items + total</p>
+      </div>
+
+      <div class="card test-card">
+        <span class="tag">Test</span><br>
+        Sold out items
+        <p>Faded, no controls, cannot be added to cart</p>
+      </div>
+
+      <div class="card test-card">
+        <span class="tag">Test</span><br>
+        Mark collected
+        <p>Staff taps collected → card fades + shows badge</p>
+      </div>
+    </div>
+
+    <!-- DONE -->
+    <div class="col">
+      <div class="col-title">✅ Done</div>
+
+      <div class="card done-card">
+        <span class="tag">Done</span><br>
+        Project structure
+        <p>server.js, database.js, public/ folder</p>
+      </div>
+
+      <div class="card done-card">
+        <span class="tag">Done</span><br>
+        Database + seed data
+        <p>SQLite tables created, 5 students + 10 menu items seeded</p>
+      </div>
+
+      <div class="card done-card">
+        <span class="tag">Done</span><br>
+        API routes
+        <p>All 5 routes working and tested with curl</p>
+      </div>
+
+      <div class="card done-card">
+        <span class="tag">Done</span><br>
+        Login page
+        <p>School number lookup → session storage → redirect</p>
+      </div>
+
+      <div class="card done-card">
+        <span class="tag">Done</span><br>
+        Menu page
+        <p>Grid renders, qty controls work, total updates live</p>
+      </div>
+
+      <div class="card done-card">
+        <span class="tag">Done</span><br>
+        Confirm page
+        <p>Shows itemised order, posts to API on confirm</p>
+      </div>
+
+      <div class="card done-card">
+        <span class="tag">Done</span><br>
+        Success page
+        <p>Receipt displayed, session cleared after viewing</p>
+      </div>
+
+      <div class="card done-card">
+        <span class="tag">Done</span><br>
+        Staff dashboard
+        <p>Orders load, filter tabs work, collected button fades card</p>
+      </div>
+
+      <div class="card done-card">
+        <span class="tag">Done</span><br>
+        Sold out items
+        <p>Muesli Bar seeded as unavailable, renders faded correctly</p>
+      </div>
+    </div>
+
+  </div>
+</body>
+</html>

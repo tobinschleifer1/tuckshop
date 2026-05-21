@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Tuck Shop — Menu</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <!-- Menu page — shows greeting, break toggle, item grid, and running total -->
+
+  <div class="app-shell">
+    <header class="top-bar">
+      <h1>Rathkeale Tuck Shop</h1>
+      <!-- Student name and photo shown here once loaded -->
+      <div id="studentInfo" class="student-info"></div>
+    </header>
+
+    <main class="page-content">
+
+      <!-- Break time toggle — morning tea or lunch -->
+      <div class="break-toggle">
+        <button id="btnMorningTea" class="toggle-btn active" data-break="morning_tea">Morning Tea</button>
+        <button id="btnLunch" class="toggle-btn" data-break="lunch">Lunch</button>
+      </div>
+
+      <!-- Menu items are injected here by JavaScript -->
+      <div id="menuGrid" class="menu-grid"></div>
+
+    </main>
+
+    <!-- Sticky footer showing running total and view order button -->
+    <footer class="order-footer hidden" id="orderFooter">
+      <span id="runningTotal">$0.00</span>
+      <button class="btn btn-primary" id="viewOrderBtn">View Order</button>
+    </footer>
+  </div>
+
+  <script>
+    // --- State ---
+    // cart is an object keyed by item id: { id, name, price, quantity }
+    let cart = {};
+    let selectedBreak = 'morning_tea'; // default break time
+
+    // Load student from sessionStorage — redirect to login if missing
+    const student = JSON.parse(sessionStorage.getItem('student'));
+    if (!student) {
+      window.location.href = 'login.html';
+    }
+
+    // Show student name in the header
+    document.getElementById('studentInfo').textContent = `Hi, ${student.name}`;
+
+    // --- Break toggle ---
+    document.querySelectorAll('.toggle-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        // Update active button style
+        document.querySelectorAll('.toggle-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        selectedBreak = btn.dataset.break;
+      });
+    });
+
+    // --- Load menu from API ---
+    async function loadMenu() {
+      const response = await fetch('/api/menu');
+      const items = await response.json();
+      renderMenu(items);
+    }
+
+    // Build the menu grid from the items array
+    function renderMenu(items) {
+      const grid = document.getElementById('menuGrid');
+      grid.innerHTML = ''; // clear before re-render
+
+      items.forEach(item => {
+        const card = document.createElement('div');
+        // Sold out items get the faded class and no quantity controls
+        card.className = `menu-card card ${item.available ? '' : 'sold-out'}`;
+
+        card.innerHTML = `
+          <div class="item-name">${item.name}</div>
+          <div class="item-price">$${item.price.toFixed(2)}</div>
+          ${item.available
+            ? `<div class="qty-controls">
+                <button class="qty-btn" onclick="changeQty(${item.id}, ${item.price}, '${item.name}', -1)">−</button>
+                <span id="qty-${item.id}" class="qty-display">0</span>
+                <button class="qty-btn" onclick="changeQty(${item.id}, ${item.price}, '${item.name}', 1)">+</button>
+              </div>`
+            : `<div class="sold-out-label">Sold Out</div>`
+          }
+        `;
+
+        grid.appendChild(card);
+      });
+    }
+
+    // Handle quantity changes — delta is +1 or -1
+    function changeQty(id, price, name, delta) {
+      // If item not in cart yet, add it
+      if (!cart[id]) {
+        cart[id] = { id, name, price, quantity: 0 };
+      }
+
+      cart[id].quantity += delta;
+
+      // Don't let quantity go below 0
+      if (cart[id].quantity < 0) cart[id].quantity = 0;
+
+      // Remove from cart if back to zero
+      if (cart[id].quantity === 0) delete cart[id];
+
+      // Update the number shown on the card
+      const qtyEl = document.getElementById(`qty-${id}`);
+      if (qtyEl) qtyEl.textContent = cart[id] ? cart[id].quantity : 0;
+
+      updateTotal();
+    }
+
+    // Recalculate and display the running total
+    function updateTotal() {
+      const total = Object.values(cart).reduce(
+        (sum, item) => sum + item.price * item.quantity, 0
+      );
+
+      document.getElementById('runningTotal').textContent = `$${total.toFixed(2)}`;
+
+      // Show the footer only when there's something in the cart
+      const footer = document.getElementById('orderFooter');
+      if (Object.keys(cart).length > 0) {
+        footer.classList.remove('hidden');
+      } else {
+        footer.classList.add('hidden');
+      }
+    }
+
+    // View Order button — save cart and break time then go to confirm page
+    document.getElementById('viewOrderBtn').addEventListener('click', () => {
+      sessionStorage.setItem('cart', JSON.stringify(cart));
+      sessionStorage.setItem('break', selectedBreak);
+      window.location.href = 'confirm.html';
+    });
+
+    // Kick off the menu load
+    loadMenu();
+  </script>
+</body>
+</html>

@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Tuck Shop — Login</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <!-- Login page — students enter school number, staff use separate button -->
+
+  <div class="app-shell">
+    <header class="top-bar">
+      <h1>Rathkeale Tuck Shop</h1>
+    </header>
+
+    <main class="page-content centered">
+      <div class="login-card card">
+        <h2>Student Login</h2>
+        <p class="subtitle">Enter your school number to order</p>
+
+        <!-- School number input -->
+        <input
+          type="text"
+          id="schoolNumberInput"
+          class="input-field"
+          placeholder="School number"
+          maxlength="10"
+        />
+
+        <!-- Error message shown if school number not found -->
+        <p id="loginError" class="error-msg hidden">School number not found. Try again.</p>
+
+        <button id="studentLoginBtn" class="btn btn-primary">Student Login</button>
+
+        <div class="divider">or</div>
+
+        <!-- Staff get a separate login — no school number needed -->
+        <button id="staffLoginBtn" class="btn btn-secondary" onclick="window.location.href='staff.html'">
+          Staff Login
+        </button>
+      </div>
+    </main>
+  </div>
+
+  <script>
+    // When the student login button is clicked, look up the school number
+    document.getElementById('studentLoginBtn').addEventListener('click', async () => {
+      const schoolNumber = document.getElementById('schoolNumberInput').value.trim();
+
+      if (!schoolNumber) return; // don't do anything if the field is empty
+
+      try {
+        // Hit the API to check if this school number exists
+        const response = await fetch(`/api/student/${schoolNumber}`);
+
+        if (!response.ok) {
+          // Show error if not found
+          document.getElementById('loginError').classList.remove('hidden');
+          return;
+        }
+
+        const student = await response.json();
+
+        // Save student info to sessionStorage so other pages can access it
+        sessionStorage.setItem('student', JSON.stringify(student));
+
+        // Go to the menu page
+        window.location.href = 'menu.html';
+      } catch (err) {
+        console.error('Login error:', err);
+      }
+    });
+
+    // Allow pressing Enter in the input field to trigger login
+    document.getElementById('schoolNumberInput').addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') {
+        document.getElementById('studentLoginBtn').click();
+      }
+    });
+
+    // Hide error message when user starts typing again
+    document.getElementById('schoolNumberInput').addEventListener('input', () => {
+      document.getElementById('loginError').classList.add('hidden');
+    });
+  </script>
+</body>
+</html>
