@@ -8,7 +8,7 @@ const express = require('express');
 const db = require('./database');
 
 const app = express();
-const PORT = 3000;
+const PORT = process.env.PORT || 3000;
 
 // Middleware — parse JSON request bodies and serve static files from /public
 app.use(express.json());

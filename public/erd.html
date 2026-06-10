@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Tuck Shop — Database ERD</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: #F5F0EB;
+      padding: 40px 20px;
+      min-height: 100vh;
+    }
+    h1 {
+      text-align: center;
+      font-size: 22px;
+      color: #1A1A1A;
+      margin-bottom: 6px;
+    }
+    .subtitle {
+      text-align: center;
+      color: #666;
+      font-size: 14px;
+      margin-bottom: 30px;
+    }
+    svg { display: block; margin: 0 auto; max-width: 900px; width: 100%; }
+
+    /* Table styles */
+    .table-bg { fill: #fff; stroke: #8B1A1A; stroke-width: 2; rx: 6; }
+    .table-header { fill: #8B1A1A; }
+    .table-header-text { fill: #fff; font-weight: 700; font-size: 14px; }
+    .row-text { font-size: 12px; fill: #1A1A1A; }
+    .row-type { font-size: 11px; fill: #777; }
+    .key-tag {
+      font-size: 9px;
+      font-weight: 700;
+      fill: #fff;
+    }
+    .pk-bg { fill: #8B1A1A; rx: 3; }
+    .fk-bg { fill: #1B4D2E; rx: 3; }
+    .uq-bg { fill: #C77800; rx: 3; }
+
+    .relationship-line {
+      stroke: #1B4D2E;
+      stroke-width: 2;
+      fill: none;
+    }
+    .relationship-label {
+      font-size: 11px;
+      fill: #1B4D2E;
+      font-weight: 600;
+    }
+
+    .legend {
+      display: flex;
+      gap: 16px;
+      justify-content: center;
+      margin-top: 24px;
+      font-size: 12px;
+      color: #555;
+    }
+    .legend-item { display: flex; align-items: center; gap: 6px; }
+    .legend-swatch { width: 24px; height: 14px; border-radius: 3px; display: inline-block; }
+  </style>
+</head>
+<body>
+  <h1>Rathkeale Tuck Shop — Database ERD</h1>
+  <p class="subtitle">SQLite schema · 3 tables · 1 relationship</p>
+
+  <svg viewBox="0 0 900 520" xmlns="http://www.w3.org/2000/svg">
+
+    <!-- ─── STUDENTS TABLE ─── -->
+    <g>
+      <rect x="40" y="60" width="220" height="180" class="table-bg"/>
+      <rect x="40" y="60" width="220" height="36" class="table-header"/>
+      <text x="150" y="84" text-anchor="middle" class="table-header-text">students</text>
+
+      <!-- id PK -->
+      <rect x="50" y="108" width="22" height="14" class="pk-bg"/>
+      <text x="61" y="119" text-anchor="middle" class="key-tag">PK</text>
+      <text x="80" y="119" class="row-text">id</text>
+      <text x="250" y="119" text-anchor="end" class="row-type">INTEGER</text>
+
+      <!-- school_number UNIQUE -->
+      <rect x="50" y="132" width="22" height="14" class="uq-bg"/>
+      <text x="61" y="143" text-anchor="middle" class="key-tag">UQ</text>
+      <text x="80" y="143" class="row-text">school_number</text>
+      <text x="250" y="143" text-anchor="end" class="row-type">TEXT</text>
+
+      <!-- name -->
+      <text x="80" y="167" class="row-text">name</text>
+      <text x="250" y="167" text-anchor="end" class="row-type">TEXT</text>
+
+      <!-- photo_url -->
+      <text x="80" y="191" class="row-text">photo_url</text>
+      <text x="250" y="191" text-anchor="end" class="row-type">TEXT</text>
+
+      <text x="150" y="222" text-anchor="middle" font-size="11" fill="#888" font-style="italic">5 sample students seeded</text>
+    </g>
+
+    <!-- ─── ORDERS TABLE (centre) ─── -->
+    <g>
+      <rect x="340" y="60" width="220" height="280" class="table-bg"/>
+      <rect x="340" y="60" width="220" height="36" class="table-header"/>
+      <text x="450" y="84" text-anchor="middle" class="table-header-text">orders</text>
+
+      <rect x="350" y="108" width="22" height="14" class="pk-bg"/>
+      <text x="361" y="119" text-anchor="middle" class="key-tag">PK</text>
+      <text x="380" y="119" class="row-text">id</text>
+      <text x="550" y="119" text-anchor="end" class="row-type">INTEGER</text>
+
+      <rect x="350" y="132" width="22" height="14" class="fk-bg"/>
+      <text x="361" y="143" text-anchor="middle" class="key-tag">FK</text>
+      <text x="380" y="143" class="row-text">school_number</text>
+      <text x="550" y="143" text-anchor="end" class="row-type">TEXT</text>
+
+      <text x="380" y="167" class="row-text">break_time</text>
+      <text x="550" y="167" text-anchor="end" class="row-type">TEXT</text>
+
+      <text x="380" y="191" class="row-text">items</text>
+      <text x="550" y="191" text-anchor="end" class="row-type">TEXT (JSON)</text>
+
+      <text x="380" y="215" class="row-text">total</text>
+      <text x="550" y="215" text-anchor="end" class="row-type">REAL</text>
+
+      <text x="380" y="239" class="row-text">date</text>
+      <text x="550" y="239" text-anchor="end" class="row-type">TEXT</text>
+
+      <text x="380" y="263" class="row-text">collected</text>
+      <text x="550" y="263" text-anchor="end" class="row-type">INTEGER (0/1)</text>
+
+      <text x="450" y="310" text-anchor="middle" font-size="11" fill="#888" font-style="italic">
+        items column stores JSON like:
+      </text>
+      <text x="450" y="324" text-anchor="middle" font-size="10" fill="#888" font-family="monospace">
+        [{id,name,price,qty},...]
+      </text>
+    </g>
+
+    <!-- ─── MENU_ITEMS TABLE ─── -->
+    <g>
+      <rect x="640" y="60" width="220" height="180" class="table-bg"/>
+      <rect x="640" y="60" width="220" height="36" class="table-header"/>
+      <text x="750" y="84" text-anchor="middle" class="table-header-text">menu_items</text>
+
+      <rect x="650" y="108" width="22" height="14" class="pk-bg"/>
+      <text x="661" y="119" text-anchor="middle" class="key-tag">PK</text>
+      <text x="680" y="119" class="row-text">id</text>
+      <text x="850" y="119" text-anchor="end" class="row-type">INTEGER</text>
+
+      <text x="680" y="143" class="row-text">name</text>
+      <text x="850" y="143" text-anchor="end" class="row-type">TEXT</text>
+
+      <text x="680" y="167" class="row-text">price</text>
+      <text x="850" y="167" text-anchor="end" class="row-type">REAL</text>
+
+      <text x="680" y="191" class="row-text">available</text>
+      <text x="850" y="191" text-anchor="end" class="row-type">INTEGER (0/1)</text>
+
+      <text x="750" y="222" text-anchor="middle" font-size="11" fill="#888" font-style="italic">10 menu items seeded</text>
+    </g>
+
+    <!-- ─── RELATIONSHIP: students → orders (one-to-many) ─── -->
+    <line x1="260" y1="143" x2="340" y2="143" class="relationship-line"/>
+    <!-- "one" notation (vertical bar) -->
+    <line x1="268" y1="135" x2="268" y2="151" class="relationship-line"/>
+    <!-- "many" notation (crow's foot) -->
+    <line x1="332" y1="143" x2="320" y2="135" class="relationship-line"/>
+    <line x1="332" y1="143" x2="320" y2="143" class="relationship-line"/>
+    <line x1="332" y1="143" x2="320" y2="151" class="relationship-line"/>
+    <text x="300" y="135" text-anchor="middle" class="relationship-label">places</text>
+    <text x="300" y="170" text-anchor="middle" font-size="10" fill="#888">1 : many</text>
+
+    <!-- ─── conceptual link orders.items → menu_items (dashed, not enforced) ─── -->
+    <line x1="560" y1="191" x2="640" y2="143" class="relationship-line" stroke-dasharray="5,4" stroke="#888"/>
+    <text x="600" y="160" text-anchor="middle" font-size="10" fill="#888" font-style="italic">embedded as JSON</text>
+
+  </svg>
+
+  <div class="legend">
+    <div class="legend-item"><span class="legend-swatch" style="background:#8B1A1A;"></span> Primary Key (PK)</div>
+    <div class="legend-item"><span class="legend-swatch" style="background:#1B4D2E;"></span> Foreign Key (FK)</div>
+    <div class="legend-item"><span class="legend-swatch" style="background:#C77800;"></span> Unique (UQ)</div>
+  </div>
+</body>
+</html>

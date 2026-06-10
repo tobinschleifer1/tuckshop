@@ -7,22 +7,21 @@
   <link rel="stylesheet" href="style.css" />
 </head>
 <body>
-  <!-- Staff dashboard — view all orders, filter by break, mark as collected -->
-
   <div class="app-shell">
     <header class="top-bar">
       <h1>Staff Dashboard</h1>
+      <div class="student-info" id="liveStatus">Live</div>
     </header>
 
     <main class="page-content">
 
-      <!-- Stat cards — pending and collected counts -->
+      <!-- Pending and collected counts -->
       <div class="stat-row">
-        <div class="stat-card card">
+        <div class="stat-card">
           <div class="stat-number" id="pendingCount">0</div>
           <div class="stat-label">Pending</div>
         </div>
-        <div class="stat-card card">
+        <div class="stat-card green">
           <div class="stat-number" id="collectedCount">0</div>
           <div class="stat-label">Collected</div>
         </div>
@@ -35,16 +34,16 @@
         <button class="tab-btn" data-filter="lunch">Lunch</button>
       </div>
 
-      <!-- Order cards injected here -->
+      <!-- Orders grouped by date are injected here -->
       <div id="orderList"></div>
 
     </main>
   </div>
 
   <script>
-    let currentFilter = 'all'; // tracks which tab is active
+    let currentFilter = 'all';
 
-    // --- Filter tabs ---
+    // --- Filter tab handlers ---
     document.querySelectorAll('.tab-btn').forEach(btn => {
       btn.addEventListener('click', () => {
         document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
@@ -54,72 +53,125 @@
       });
     });
 
-    // --- Load orders from the API ---
+    // --- Fetch orders from the API ---
     async function loadOrders() {
-      // Pass the filter as a query param — server handles the filtering
       const url = currentFilter === 'all'
         ? '/api/orders'
         : `/api/orders?break=${currentFilter}`;
-
       const response = await fetch(url);
       const orders = await response.json();
-
       renderOrders(orders);
       updateStats(orders);
     }
 
-    // Build the order cards from the orders array
-    function renderOrders(orders) {
-      const list = document.getElementById('orderList');
-      list.innerHTML = ''; // clear before re-render
+    // ─── Date helpers ────────────────────────────────────────────────
+    // Get YYYY-MM-DD string for a given Date
+    function dateKey(d) {
+      return d.toISOString().split('T')[0];
+    }
 
-      if (orders.length === 0) {
-        list.innerHTML = '<p class="empty-msg">No orders yet.</p>';
-        return;
-      }
+    // Friendly label for a date group: Today / Yesterday / Day, Month
+    function dateLabel(dateStr) {
+      const today = new Date();
+      const yesterday = new Date();
+      yesterday.setDate(today.getDate() - 1);
 
-      orders.forEach(order => {
-        const card = document.createElement('div');
-        // Collected orders are faded out
-        card.className = `order-card card ${order.collected ? 'collected' : ''}`;
+      if (dateStr === dateKey(today))     return 'Today';
+      if (dateStr === dateKey(yesterday)) return 'Yesterday';
 
-        // Build the items list as a string
-        const itemsList = order.items
-          .map(i => `${i.name} × ${i.quantity}`)
-          .join(', ');
-
-        // Format the break time label nicely
-        const breakLabel = order.break_time === 'morning_tea' ? 'Morning Tea' : 'Lunch';
-
-        // Format the date/time
-        const date = new Date(order.date);
-        const timeStr = date.toLocaleTimeString('en-NZ', { hour: '2-digit', minute: '2-digit' });
-
-        card.innerHTML = `
-          <div class="order-card-header">
-            <!-- Student avatar placeholder — first letter of name -->
-            <div class="avatar">${order.school_number.charAt(0)}</div>
-            <div class="order-student-info">
-              <div class="order-school-no">${order.school_number}</div>
-              <div class="order-time">${timeStr}</div>
-            </div>
-            <span class="break-tag ${order.break_time}">${breakLabel}</span>
-          </div>
-
-          <div class="order-items">${itemsList}</div>
-          <div class="order-total">$${order.total.toFixed(2)}</div>
-
-          ${order.collected
-            ? `<div class="collected-badge">Collected</div>`
-            : `<button class="btn btn-success collected-btn" onclick="markCollected(${order.id})">Mark Collected</button>`
-          }
-        `;
-
-        list.appendChild(card);
+      // For older orders, show the actual date like "Mon, 3 Jun"
+      const d = new Date(dateStr);
+      return d.toLocaleDateString('en-NZ', {
+        weekday: 'short', day: 'numeric', month: 'short'
       });
     }
 
-    // Update the pending and collected stat cards
+    // Group orders into an object keyed by date string
+    function groupByDate(orders) {
+      const groups = {};
+      orders.forEach(order => {
+        const key = dateKey(new Date(order.date));
+        if (!groups[key]) groups[key] = [];
+        groups[key].push(order);
+      });
+      return groups;
+    }
+
+    // ─── Rendering ───────────────────────────────────────────────────
+    function renderOrders(orders) {
+      const list = document.getElementById('orderList');
+      list.innerHTML = '';
+
+      if (orders.length === 0) {
+        list.innerHTML = `
+          <div class="empty-msg">
+            <strong>No orders yet</strong>
+            Pre-orders will appear here as students place them.
+          </div>`;
+        return;
+      }
+
+      const groups = groupByDate(orders);
+      const todayKey = dateKey(new Date());
+
+      // Render groups in date order (newest first)
+      const sortedKeys = Object.keys(groups).sort().reverse();
+
+      sortedKeys.forEach(key => {
+        // Date group header
+        const header = document.createElement('div');
+        const isToday = key === todayKey;
+        header.className = `date-group-header ${isToday ? 'today' : ''}`;
+        header.textContent = dateLabel(key);
+        list.appendChild(header);
+
+        // Order cards in this date group
+        groups[key].forEach(order => {
+          list.appendChild(buildOrderCard(order, isToday));
+        });
+      });
+    }
+
+    function buildOrderCard(order, isToday) {
+      const card = document.createElement('div');
+      const classes = ['order-card', 'card'];
+      if (order.collected) classes.push('collected');
+      if (isToday && !order.collected) classes.push('new-today');
+      card.className = classes.join(' ');
+
+      const itemsList = order.items.map(i => `${i.name} × ${i.quantity}`).join(', ');
+      const breakLabel = order.break_time === 'morning_tea' ? 'Morning Tea' : 'Lunch';
+      const orderDate = new Date(order.date);
+      const timeStr = orderDate.toLocaleTimeString('en-NZ', {
+        hour: '2-digit', minute: '2-digit'
+      });
+
+      // NEW badge only on today's pending orders
+      const newBadge = (isToday && !order.collected)
+        ? '<span class="new-badge">New</span>'
+        : '';
+
+      card.innerHTML = `
+        <div class="order-card-header">
+          <div class="avatar">${order.school_number.charAt(0)}</div>
+          <div class="order-student-info">
+            <div class="order-school-no">${order.school_number}</div>
+            <div class="order-time">${timeStr} ${newBadge}</div>
+          </div>
+          <span class="break-tag ${order.break_time}">${breakLabel}</span>
+        </div>
+
+        <div class="order-items">${itemsList}</div>
+        <div class="order-total">$${order.total.toFixed(2)}</div>
+
+        ${order.collected
+          ? `<div class="collected-badge">Collected</div>`
+          : `<button class="btn btn-success collected-btn" onclick="markCollected(${order.id})">Mark Collected</button>`
+        }
+      `;
+      return card;
+    }
+
     function updateStats(orders) {
       const pending = orders.filter(o => !o.collected).length;
       const collected = orders.filter(o => o.collected).length;
@@ -127,14 +179,15 @@
       document.getElementById('collectedCount').textContent = collected;
     }
 
-    // Mark an order as collected — calls the API then reloads the list
+    // Mark an order as collected and refresh
     async function markCollected(orderId) {
       await fetch(`/api/orders/${orderId}/collected`, { method: 'PUT' });
-      loadOrders(); // refresh the list to show the faded state
+      loadOrders();
     }
 
-    // Load orders on page load
+    // Initial load + auto-refresh every 10 seconds so staff don't have to refresh
     loadOrders();
+    setInterval(loadOrders, 10000);
   </script>
 </body>
 </html>

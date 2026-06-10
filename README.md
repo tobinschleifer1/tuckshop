@@ -1,68 +1,180 @@
-# Rathkeale Tuck Shop — Pre-order System
+<div align="center">
 
-A web-based pre-order system that lets Rathkeale College students order food from the school tuck shop before break, and lets staff manage incoming orders from a separate dashboard.
+```
+████████╗██╗   ██╗ ██████╗██╗  ██╗    ███████╗██╗  ██╗ ██████╗ ██████╗
+╚══██╔══╝██║   ██║██╔════╝██║ ██╔╝    ██╔════╝██║  ██║██╔═══██╗██╔══██╗
+   ██║   ██║   ██║██║     █████╔╝     ███████╗███████║██║   ██║██████╔╝
+   ██║   ██║   ██║██║     ██╔═██╗     ╚════██║██╔══██║██║   ██║██╔═══╝
+   ██║   ╚██████╔╝╚██████╗██║  ██╗    ███████║██║  ██║╚██████╔╝██║
+   ╚═╝    ╚═════╝  ╚═════╝╚═╝  ╚═╝    ╚══════╝╚═╝  ╚═╝ ╚═════╝ ╚═╝
+```
 
-> **Status:** Alpha (Sprint 1) — fully functional first iteration with no error handling. Beta and Delta releases will follow.
+### Rathkeale College Tuck Shop Pre-order System
+
+*Skip the queue. Order ahead. Collect at break.*
+
+<br>
+
+![Status](https://img.shields.io/badge/status-alpha-orange?style=for-the-badge)
+![Sprint](https://img.shields.io/badge/sprint-1%20of%203-8B1A1A?style=for-the-badge)
+![License](https://img.shields.io/badge/license-NCEA%20Internal-1B4D2E?style=for-the-badge)
+
+<br>
+
+![Node](https://img.shields.io/badge/Node.js-22.5+-339933?style=flat-square&logo=node.js&logoColor=white)
+![Express](https://img.shields.io/badge/Express-4.18-000000?style=flat-square&logo=express&logoColor=white)
+![SQLite](https://img.shields.io/badge/SQLite-built--in-003B57?style=flat-square&logo=sqlite&logoColor=white)
+![HTML5](https://img.shields.io/badge/HTML5-E34F26?style=flat-square&logo=html5&logoColor=white)
+![CSS3](https://img.shields.io/badge/CSS3-1572B6?style=flat-square&logo=css3&logoColor=white)
+![JavaScript](https://img.shields.io/badge/JavaScript-Vanilla-F7DF1E?style=flat-square&logo=javascript&logoColor=black)
+
+<br>
+
+[**Quick Start**](#-quick-start) • [**Features**](#-features) • [**Architecture**](#-architecture) • [**API**](#-api-reference) • [**Roadmap**](#-roadmap)
+
+</div>
 
 ---
 
-## Table of Contents
+<div align="center">
 
-- [Overview](#overview)
-- [Features](#features)
-- [Tech Stack](#tech-stack)
-- [Project Structure](#project-structure)
-- [Getting Started](#getting-started)
-- [Test Data](#test-data)
-- [How It Works](#how-it-works)
-- [API Reference](#api-reference)
-- [Database Schema](#database-schema)
-- [Roadmap](#roadmap)
+### The Problem
+
+> *Lunchtime queues at the tuck shop chew through half the break — and by the time some students get to the counter, the pies are gone.*
+
+### The Solution
+
+> *Order from your phone in homeroom. Pick it up the moment break starts. Done.*
+
+</div>
 
 ---
 
-## Overview
+## Quick Start
 
-Long lunch queues at the tuck shop waste student break time. This system solves that by letting students pre-order food from their phone, then collect it at break. Staff get a real-time dashboard showing every pending order so they can prepare orders ahead of time and tick them off as collected.
+```bash
+# 1. Clone & enter
+git clone <your-repo-url>
+cd tuckshop
 
-The app has two completely separate sides:
+# 2. Install
+npm install
 
-| Side          | Who it's for       | Pages                                     |
-| ------------- | ------------------ | ----------------------------------------- |
-| **Student**   | Rathkeale students | Login → Menu → Confirm → Success          |
-| **Staff**     | Tuck shop staff    | Dashboard with filter tabs                |
+# 3. Run
+node server.js
+```
+
+Then open one of these in your browser:
+
+<table>
+<tr>
+<td align="center" width="33%">
+  
+**Student App**
+  
+[`localhost:3000/login.html`](http://localhost:3000/login.html)
+  
+*Order food*
+  
+</td>
+<td align="center" width="33%">
+  
+**Staff Dashboard**
+  
+[`localhost:3000/staff.html`](http://localhost:3000/staff.html)
+  
+*Manage orders*
+  
+</td>
+<td align="center" width="33%">
+  
+**Architecture**
+  
+[`localhost:3000/architecture.html`](http://localhost:3000/architecture.html)
+  
+*See the design*
+  
+</td>
+</tr>
+</table>
+
+> **Heads up:** requires Node v22.5 or later. No native build step — SQLite is bundled into Node.
 
 ---
 
 ## Features
 
-**Student side**
-- Log in with school number — no password needed
-- Live-updating menu grid with quantity controls
-- Choose between Morning Tea or Lunch
-- Sold-out items shown but cannot be ordered
-- Running total updates as items are added
-- Itemised confirmation screen before submitting
-- Receipt shown after successful order
+<table>
+<tr>
+<td valign="top" width="50%">
 
-**Staff side**
-- Real-time dashboard of all incoming orders
-- Filter by All / Morning Tea / Lunch
-- Live stat cards showing pending and collected counts
-- One-tap "Mark Collected" with visual fade-out feedback
+### Student Side
+
+```
+[*] Login by school number
+[*] No password required
+[*] Live menu grid
+[*] Plus/minus quantity controls
+[*] Real-time running total
+[*] Morning Tea / Lunch toggle
+[*] Sold-out items shown but disabled
+[*] Itemised order confirmation
+[*] Full receipt on success
+```
+
+</td>
+<td valign="top" width="50%">
+
+### Staff Side
+
+```
+[*] Real-time order dashboard
+[*] Filter: All / Morning Tea / Lunch
+[*] Live pending & collected stats
+[*] Student avatar on each card
+[*] Break-time colour tags
+[*] One-tap "Mark Collected"
+[*] Faded card on collection
+[*] Auto-refresh after action
+```
+
+</td>
+</tr>
+</table>
 
 ---
 
-## Tech Stack
+## Architecture
 
-| Layer       | Technology                                    |
-| ----------- | --------------------------------------------- |
-| Backend     | Node.js + Express                             |
-| Database    | SQLite (via Node's built-in `node:sqlite`)    |
-| Frontend    | HTML, CSS, vanilla JavaScript                 |
-| Storage     | Browser `sessionStorage` for cart state       |
-
-No build step, no frontend framework, no external database. The whole app runs from a single `node server.js` command.
+```
+                        ┌────────────────────────────────────┐
+                        │            BROWSER LAYER           │
+                        │  login → menu → confirm → success  │
+                        │         staff dashboard            │
+                        └─────────────┬──────────────────────┘
+                                      │
+                                      │  HTTP / JSON
+                                      ▼
+                        ┌────────────────────────────────────┐
+                        │           SERVER LAYER             │
+                        │       Express + Node.js            │
+                        │                                    │
+                        │  GET /api/student/:schoolNumber    │
+                        │  GET /api/menu                     │
+                        │  POST /api/order                   │
+                        │  GET /api/orders                   │
+                        │  PUT /api/orders/:id/collected     │
+                        └─────────────┬──────────────────────┘
+                                      │
+                                      │  SQL
+                                      ▼
+                        ┌────────────────────────────────────┐
+                        │          DATABASE LAYER            │
+                        │       SQLite (node:sqlite)         │
+                        │                                    │
+                        │   students   menu_items   orders   │
+                        └────────────────────────────────────┘
+```
 
 ---
 
@@ -70,172 +182,312 @@ No build step, no frontend framework, no external database. The whole app runs f
 
 ```
 tuckshop/
-├── server.js              Express server and API routes
-├── database.js            SQLite setup and seed data
-├── package.json           Dependencies (Express only)
-├── tuckshop.db            SQLite database file (created on first run)
+│
+├── server.js                  Express server + 5 API routes
+├── database.js                SQLite setup + seed data
+├── package.json               Dependencies (Express only)
+├── tuckshop.db                Created on first run
+│
 └── public/
-    ├── login.html         Student/staff entry point
-    ├── menu.html          Menu grid and quantity controls
-    ├── confirm.html       Order summary screen
-    ├── success.html       Order receipt
-    ├── staff.html         Staff dashboard
-    ├── planning.html      Sprint 1 Trello-style planning board
-    ├── architecture.html  Whiteboard-style architecture diagram
-    └── style.css          All shared styles
+    ├── style.css              Shared styles
+    │
+    │   ── Student flow ──
+    ├── login.html             Login screen
+    ├── menu.html              Menu grid + qty controls
+    ├── confirm.html           Order summary
+    ├── success.html           Receipt
+    │
+    │   ── Staff ──
+    ├── staff.html             Dashboard
+    │
+    │   ── Docs ──
+    ├── planning.html          Trello-style sprint board
+    └── architecture.html      Whiteboard diagram
 ```
 
 ---
 
-## Getting Started
+## Tech Stack
 
-### Prerequisites
-- Node.js v22.5 or later (for the built-in `node:sqlite` module)
+<table>
+<tr>
+<th>Layer</th>
+<th>Choice</th>
+<th>Why</th>
+</tr>
+<tr>
+<td><b>Runtime</b></td>
+<td>Node.js 22+</td>
+<td>Built-in SQLite — no native compile step needed</td>
+</tr>
+<tr>
+<td><b>Server</b></td>
+<td>Express 4</td>
+<td>Tiny, fast, perfect for a REST API of this size</td>
+</tr>
+<tr>
+<td><b>Database</b></td>
+<td>SQLite (node:sqlite)</td>
+<td>File-based, zero-config, ships with Node</td>
+</tr>
+<tr>
+<td><b>Frontend</b></td>
+<td>Plain HTML / CSS / JS</td>
+<td>No framework overhead; loads instantly on school WiFi</td>
+</tr>
+<tr>
+<td><b>State</b></td>
+<td>sessionStorage</td>
+<td>Persists across pages without a cookie or login system</td>
+</tr>
+</table>
 
-### Installation
+---
 
-```bash
-# Clone the repo and enter the folder
-git clone <your-repo-url>
-cd tuckshop
+## Brand Palette
 
-# Install dependencies
-npm install
-```
-
-### Running
-
-```bash
-node server.js
-```
-
-Then open your browser:
-
-| URL                                              | Page                |
-| ------------------------------------------------ | ------------------- |
-| `http://localhost:3000/login.html`              | Student login       |
-| `http://localhost:3000/staff.html`              | Staff dashboard     |
-| `http://localhost:3000/planning.html`           | Sprint 1 plan       |
-| `http://localhost:3000/architecture.html`       | Architecture diagram|
-
-The database is seeded automatically on first run.
+<table>
+<tr>
+<td align="center" bgcolor="#8B1A1A" width="20%"><br><b><code>#8B1A1A</code></b><br><sub>Rathkeale Red</sub><br>Primary buttons, nav<br><br></td>
+<td align="center" bgcolor="#1B4D2E" width="20%"><br><b><code>#1B4D2E</code></b><br><sub>Forest Green</sub><br>Success, confirm<br><br></td>
+<td align="center" bgcolor="#F5F0EB" width="20%"><br><b><code>#F5F0EB</code></b><br><sub>Parchment</sub><br>Page background<br><br></td>
+<td align="center" bgcolor="#EAF3DE" width="20%"><br><b><code>#EAF3DE</code></b><br><sub>Light Success</sub><br>Success states<br><br></td>
+<td align="center" bgcolor="#FCEBEB" width="20%"><br><b><code>#FCEBEB</code></b><br><sub>Light Error</sub><br>Error messages<br><br></td>
+</tr>
+</table>
 
 ---
 
 ## Test Data
 
-The database ships with five test students and ten menu items.
+<details>
+<summary><b>Click to see test student logins</b></summary>
 
-**Test student logins**
+<br>
 
-| School No. | Name                |
-| ---------- | ------------------- |
-| `12345`    | James Tanner        |
-| `23456`    | Liam Murphy         |
-| `34567`    | Noah Fitzpatrick    |
-| `45678`    | Oliver Ryan         |
-| `56789`    | Ethan O'Brien       |
+| School No. | Student              |
+| :--------: | -------------------- |
+| `12345`    | James Tanner         |
+| `23456`    | Liam Murphy          |
+| `34567`    | Noah Fitzpatrick     |
+| `45678`    | Oliver Ryan          |
+| `56789`    | Ethan O'Brien        |
 
-**Sample menu**
+</details>
 
-| Item                     | Price  | Status     |
-| ------------------------ | ------ | ---------- |
-| Meat Pie                 | $3.50  | Available  |
-| Sausage Roll             | $3.00  | Available  |
-| Ham Sandwich             | $4.00  | Available  |
-| Cheese & Vegemite Roll   | $3.50  | Available  |
-| Chicken Wrap             | $5.00  | Available  |
-| Hot Dog                  | $3.00  | Available  |
-| Fruit Cup                | $2.50  | Available  |
-| Chocolate Milk           | $2.00  | Available  |
-| Water Bottle             | $1.50  | Available  |
-| Muesli Bar               | $1.50  | Sold Out   |
+<details>
+<summary><b>Click to see the seeded menu</b></summary>
 
----
+<br>
 
-## How It Works
+| Item                       | Price    | Status      |
+| -------------------------- | -------: | :---------: |
+| Meat Pie                   | `$3.50`  | Available   |
+| Sausage Roll               | `$3.00`  | Available   |
+| Ham Sandwich               | `$4.00`  | Available   |
+| Cheese & Vegemite Roll     | `$3.50`  | Available   |
+| Chicken Wrap               | `$5.00`  | Available   |
+| Hot Dog                    | `$3.00`  | Available   |
+| Fruit Cup                  | `$2.50`  | Available   |
+| Chocolate Milk             | `$2.00`  | Available   |
+| Water Bottle               | `$1.50`  | Available   |
+| Muesli Bar                 | `$1.50`  | **Sold out**|
 
-```
-   ┌─────────────────┐    HTTP/JSON    ┌─────────────────┐    SQL    ┌─────────────┐
-   │   Browser       │ ──────────────► │   Express API   │ ────────► │   SQLite    │
-   │ (HTML/CSS/JS)   │ ◄────────────── │   (server.js)   │ ◄──────── │  (.db file) │
-   └─────────────────┘                 └─────────────────┘           └─────────────┘
-```
-
-1. Student opens the login page and enters their school number.
-2. The browser calls `GET /api/student/:schoolNumber` to look up the student.
-3. The student's details are saved in `sessionStorage` so other pages can use them.
-4. The menu page calls `GET /api/menu` and renders the item grid.
-5. As the student taps `+` or `−` buttons, the cart and running total update in JS — no server calls.
-6. On confirm, the browser sends `POST /api/order` with the full cart and break time.
-7. The staff dashboard polls `GET /api/orders` to show pending and collected orders, and uses `PUT /api/orders/:id/collected` to mark them done.
+</details>
 
 ---
 
 ## API Reference
 
-| Method | Endpoint                          | Purpose                                  |
-| ------ | --------------------------------- | ---------------------------------------- |
-| GET    | `/api/student/:schoolNumber`     | Look up a student by school number       |
-| GET    | `/api/menu`                      | Get all menu items (available + sold out)|
-| POST   | `/api/order`                     | Place a new order                        |
-| GET    | `/api/orders?break=morning_tea`  | List all orders (optional break filter)  |
-| PUT    | `/api/orders/:id/collected`      | Mark an order as collected               |
+<table>
+<tr>
+<th>Method</th>
+<th>Endpoint</th>
+<th>Description</th>
+</tr>
+<tr>
+<td><code>GET</code></td>
+<td><code>/api/student/:schoolNumber</code></td>
+<td>Look up a student by school number</td>
+</tr>
+<tr>
+<td><code>GET</code></td>
+<td><code>/api/menu</code></td>
+<td>Fetch all menu items (available + sold out)</td>
+</tr>
+<tr>
+<td><code>POST</code></td>
+<td><code>/api/order</code></td>
+<td>Place a new order</td>
+</tr>
+<tr>
+<td><code>GET</code></td>
+<td><code>/api/orders?break=morning_tea</code></td>
+<td>List all orders, optionally filtered by break</td>
+</tr>
+<tr>
+<td><code>PUT</code></td>
+<td><code>/api/orders/:id/collected</code></td>
+<td>Mark an order as collected</td>
+</tr>
+</table>
 
 ---
 
 ## Database Schema
 
-### `students`
-| Column          | Type    | Notes                  |
-| --------------- | ------- | ---------------------- |
-| id              | INTEGER | Primary key            |
-| school_number   | TEXT    | Unique student ID      |
-| name            | TEXT    | Full name              |
-| photo_url       | TEXT    | Optional profile photo |
+<details>
+<summary><b>students</b></summary>
 
-### `menu_items`
-| Column     | Type    | Notes                          |
-| ---------- | ------- | ------------------------------ |
-| id         | INTEGER | Primary key                    |
-| name       | TEXT    | Item name                      |
-| price      | REAL    | Price in NZD                   |
-| available  | INTEGER | 0 = sold out, 1 = available    |
+| Column          | Type      | Notes                  |
+| --------------- | --------- | ---------------------- |
+| `id`            | INTEGER   | Primary key            |
+| `school_number` | TEXT      | Unique                 |
+| `name`          | TEXT      | Full name              |
+| `photo_url`     | TEXT      | Optional profile photo |
 
-### `orders`
-| Column         | Type    | Notes                                       |
-| -------------- | ------- | ------------------------------------------- |
-| id             | INTEGER | Primary key                                 |
-| school_number  | TEXT    | References the student                     |
-| break_time     | TEXT    | `morning_tea` or `lunch`                   |
-| items          | TEXT    | JSON string of items in the order          |
-| total          | REAL    | Order total in NZD                         |
-| date           | TEXT    | ISO 8601 timestamp                         |
-| collected      | INTEGER | 0 = pending, 1 = collected                 |
+</details>
+
+<details>
+<summary><b>menu_items</b></summary>
+
+| Column      | Type      | Notes                          |
+| ----------- | --------- | ------------------------------ |
+| `id`        | INTEGER   | Primary key                    |
+| `name`      | TEXT      | Item name                      |
+| `price`     | REAL      | NZD                            |
+| `available` | INTEGER   | `0` = sold out, `1` = on sale  |
+
+</details>
+
+<details>
+<summary><b>orders</b></summary>
+
+| Column          | Type      | Notes                                  |
+| --------------- | --------- | -------------------------------------- |
+| `id`            | INTEGER   | Primary key                            |
+| `school_number` | TEXT      | References `students.school_number`    |
+| `break_time`    | TEXT      | `morning_tea` or `lunch`               |
+| `items`         | TEXT      | JSON string of cart items              |
+| `total`         | REAL      | Order total in NZD                     |
+| `date`          | TEXT      | ISO 8601 timestamp                     |
+| `collected`     | INTEGER   | `0` = pending, `1` = done              |
+
+</details>
 
 ---
 
 ## Roadmap
 
-This is the **Alpha (Sprint 1)** release — focused on core functionality.
+<table>
+<tr>
+<th align="left" width="33%">
+  
+**ALPHA — Sprint 1**
+  
+*shipped*
 
-**Planned for Beta (Sprint 2)**
-- Input validation and error handling on all forms
-- Cutoff time check so orders cannot be placed after the school day ends
-- Staff password authentication
-- Toast notifications for success and error states
+</th>
+<th align="left" width="33%">
+  
+**BETA — Sprint 2**
 
-**Planned for Delta (Sprint 3)**
-- Student profile photos in the database
+*coming up*
+
+</th>
+<th align="left" width="33%">
+  
+**DELTA — Sprint 3**
+
+*final polish*
+
+</th>
+</tr>
+<tr>
+<td valign="top">
+
+- Core student order flow
+- Staff dashboard
+- SQLite storage
+- API layer
+- Mobile-first layout
+- Sold-out handling
+
+</td>
+<td valign="top">
+
+- Form validation
+- Cutoff time (orders close end of day)
+- Staff password auth
+- Toast notifications
+- Empty-state polish
+- Edge-case error handling
+
+</td>
+<td valign="top">
+
+- Student photos in DB
 - Order history per student
-- Daily order summary export for staff
-- Polished animations and refined UI
-- Real-time dashboard updates (no manual refresh)
+- Daily export for staff
+- Smooth animations
+- Live dashboard updates
+- Accessibility pass
+
+</td>
+</tr>
+</table>
 
 ---
 
-## Credits
+## Development Process
 
-Built by Toby Schleif as a Year 13 Digital Technologies internal assessment at Rathkeale College.
+This project follows an **iterative, sprint-based workflow**, tracked on Trello and committed in logical chunks.
 
-Branding follows the official Rathkeale dark red (`#8B1A1A`) and forest green (`#1B4D2E`) colour scheme.
+```
+   Plan  ──►  Build  ──►  Test  ──►  Debug  ──►  Showcase  ──►  Commit
+     ▲                                                              │
+     └──────────────────────────────────────────────────────────────┘
+```
+
+**Sprint board:** [trello.com/b/LBF92Idg/dgt-tuck](https://trello.com/b/LBF92Idg/dgt-tuck)
+
+---
+
+## Coding Style
+
+Code follows the **[Airbnb JavaScript Style Guide](https://github.com/airbnb/javascript)**.
+
+```js
+/**
+ * Multiline JSDoc comments for file headers and route descriptions.
+ */
+app.get('/api/student/:schoolNumber', (req, res) => {
+  // Single line comments sit on their own line above the code
+  const student = db
+    .prepare('SELECT * FROM students WHERE school_number = ?')
+    .get(req.params.schoolNumber);
+
+  // FIXME: needs error handling for malformed school numbers
+  // TODO: add a rate limit before going to production
+
+  res.json(student);
+});
+```
+
+---
+
+<div align="center">
+
+### Built for Rathkeale College
+
+*Year 13 Digital Technologies Internal Assessment*
+
+<br>
+
+`91906 — Use complex programming techniques to develop a computer program`
+
+<br>
+
+Made with `vanilla JS`, `SQLite`, and quiet library time.
+
+</div>

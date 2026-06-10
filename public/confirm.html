@@ -7,17 +7,13 @@
   <link rel="stylesheet" href="style.css" />
 </head>
 <body>
-  <!-- Confirm page — shows a summary of the order before submitting -->
-
   <div class="app-shell">
     <header class="top-bar">
-      <h1>Confirm Order</h1>
+      <h1>Review your order</h1>
     </header>
 
     <main class="page-content">
       <div class="card confirm-card">
-
-        <!-- Student details -->
         <div class="confirm-row">
           <span class="confirm-label">Name</span>
           <span id="confirmName"></span>
@@ -33,36 +29,30 @@
 
         <hr class="divider-line" />
 
-        <!-- Itemised list of what's in the cart -->
         <div id="confirmItems"></div>
 
         <hr class="divider-line" />
 
-        <!-- Bold total -->
         <div class="confirm-row total-row">
           <span>Total</span>
-          <span id="confirmTotal"></span>
+          <span id="confirmTotal" class="total-red"></span>
         </div>
       </div>
 
-      <!-- Confirm and cancel buttons -->
-      <button id="confirmBtn" class="btn btn-success">Confirm Order</button>
-      <button id="cancelBtn" class="btn btn-ghost">Cancel</button>
+      <div style="display: flex; flex-direction: column; gap: 10px; margin-top: 14px;">
+        <button id="confirmBtn" class="btn btn-success">Place Order</button>
+        <button id="cancelBtn" class="btn btn-ghost">Back to menu</button>
+      </div>
     </main>
   </div>
 
   <script>
-    // Pull student, cart, and break from sessionStorage
     const student = JSON.parse(sessionStorage.getItem('student'));
     const cart = JSON.parse(sessionStorage.getItem('cart'));
     const breakTime = sessionStorage.getItem('break');
 
-    // Redirect to login if any required session data is missing
-    if (!student || !cart || !breakTime) {
-      window.location.href = 'login.html';
-    }
+    if (!student || !cart || !breakTime) window.location.href = 'login.html';
 
-    // Fill in student details
     document.getElementById('confirmName').textContent = student.name;
     document.getElementById('confirmSchoolNo').textContent = student.school_number;
     document.getElementById('confirmBreak').textContent =
@@ -72,7 +62,6 @@
     const itemsContainer = document.getElementById('confirmItems');
     let total = 0;
 
-    // cart is an object — loop over its values to get each item
     Object.values(cart).forEach(item => {
       const lineTotal = item.price * item.quantity;
       total += lineTotal;
@@ -86,12 +75,10 @@
       itemsContainer.appendChild(row);
     });
 
-    // Show the bold total
     document.getElementById('confirmTotal').textContent = `$${total.toFixed(2)}`;
 
-    // Confirm button — POST the order to the server
+    // Place order — POST to API
     document.getElementById('confirmBtn').addEventListener('click', async () => {
-      // Build the payload the server expects
       const orderPayload = {
         school_number: student.school_number,
         break_time: breakTime,
@@ -105,11 +92,8 @@
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(orderPayload)
         });
-
         const result = await response.json();
-
         if (result.success) {
-          // Save the order details for the success page receipt
           sessionStorage.setItem('lastOrder', JSON.stringify(orderPayload));
           window.location.href = 'success.html';
         }
@@ -118,7 +102,6 @@
       }
     });
 
-    // Cancel goes back to the menu
     document.getElementById('cancelBtn').addEventListener('click', () => {
       window.location.href = 'menu.html';
     });
