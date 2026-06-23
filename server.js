@@ -7,6 +7,14 @@
 const express = require('express');
 const db = require('./database');
 
+// Load environment variables from a local .env file if one exists.
+// This keeps secrets like the staff password out of the source code.
+try {
+  process.loadEnvFile();
+} catch {
+  // No .env file present — fall back to real env vars or the placeholder default
+}
+
 const app = express();
 const PORT = process.env.PORT || 3000;
 
@@ -17,7 +25,9 @@ app.use(express.static('public'));
 // The staff password. Falls back to a default for local use, but can be
 // overridden with the STAFF_PASSWORD environment variable so the real
 // password never has to live in the public code.
-const STAFF_PASSWORD = process.env.STAFF_PASSWORD || 'Rathkeale#Tuck2026';
+// The real password lives in the gitignored .env file (or a real env var).
+// This placeholder is only used if no .env is set up.
+const STAFF_PASSWORD = process.env.STAFF_PASSWORD || 'changeme';
 
 // ─── STAFF AUTH ──────────────────────────────────────────────────────────────
 

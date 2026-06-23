@@ -12,6 +12,9 @@ tuckshop.db
 # Real student data exports (contain names + ID numbers)
 students-import.csv
 
+# Secrets — real values live here, never committed (.env.example shows the keys)
+.env
+
 # Node
 node_modules/
 
