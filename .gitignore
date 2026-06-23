@@ -1,0 +1,20 @@
+# Database data files — keep real student data out of the public repo.
+# The database rebuilds itself with seed data on first run, so the data
+# file does not need to be tracked.
+*.db
+*.sqlite
+*.sqlite3
+tuckshop.db
+
+# NOTE: database.js (the schema + seed code) IS tracked on purpose — it is
+# code, not data, so it is not ignored here.
+
+# Real student data exports (contain names + ID numbers)
+students-import.csv
+
+# Node
+node_modules/
+
+# OS / editor junk
+.DS_Store
+*.log
