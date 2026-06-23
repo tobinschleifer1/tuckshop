@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0" />
+  <title>Tuck Shop — Staff Login</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <div class="app-shell">
+    <header class="top-bar">
+      <h1>Staff Login</h1>
+    </header>
+
+    <main class="page-content centered">
+
+      <div class="brand-mark">🔒</div>
+      <div class="brand-title">Staff access</div>
+      <div class="brand-subtitle">Enter the staff password to continue</div>
+
+      <div class="login-card card">
+
+        <input
+          type="password"
+          id="passwordInput"
+          class="input-field"
+          placeholder="Password"
+          autofocus
+        />
+
+        <p id="loginError" class="error-msg hidden">Incorrect password — try again.</p>
+
+        <button id="loginBtn" class="btn btn-primary">Log In</button>
+
+        <div class="divider">— OR —</div>
+
+        <!-- Back to the student login -->
+        <button class="btn btn-ghost" onclick="window.location.href='login.html'">
+          ← Back to student login
+        </button>
+      </div>
+    </main>
+  </div>
+
+  <script>
+    const passwordInput = document.getElementById('passwordInput');
+    const loginBtn = document.getElementById('loginBtn');
+    const loginError = document.getElementById('loginError');
+
+    // Send the password to the server to check it
+    async function attemptLogin() {
+      const password = passwordInput.value;
+      if (!password) return;
+
+      try {
+        const response = await fetch('/api/staff/login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ password }),
+        });
+
+        if (!response.ok) {
+          // Wrong password — show the error
+          loginError.classList.remove('hidden');
+          passwordInput.value = '';
+          return;
+        }
+
+        // Correct — set a flag so the staff pages know we're logged in
+        sessionStorage.setItem('staffLoggedIn', 'true');
+        window.location.href = 'staff.html';
+      } catch (err) {
+        console.error('Staff login error:', err);
+      }
+    }
+
+    loginBtn.addEventListener('click', attemptLogin);
+
+    // Pressing Enter also logs in
+    passwordInput.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') attemptLogin();
+    });
+
+    // Hide the error message once the user starts typing again
+    passwordInput.addEventListener('input', () => loginError.classList.add('hidden'));
+  </script>
+</body>
+</html>

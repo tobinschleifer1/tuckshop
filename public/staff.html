@@ -5,12 +5,21 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Tuck Shop — Staff Dashboard</title>
   <link rel="stylesheet" href="style.css" />
+  <script>
+    // Guard — kick anyone who isn't logged in back to the staff login page
+    if (sessionStorage.getItem('staffLoggedIn') !== 'true') {
+      window.location.href = 'staff-login.html';
+    }
+  </script>
 </head>
 <body>
   <div class="app-shell">
     <header class="top-bar">
       <h1>Staff Dashboard</h1>
-      <div class="student-info" onclick="window.location.href='upload.html'" style="cursor:pointer;">+ Students</div>
+      <div class="header-actions">
+        <button class="header-btn" onclick="window.location.href='upload.html'">+ Students</button>
+        <button class="header-btn" onclick="staffLogout()">Log out</button>
+      </div>
     </header>
 
     <main class="page-content">
@@ -41,6 +50,12 @@
   </div>
 
   <script>
+    // Log out — clear the staff flag and return to the main login page
+    function staffLogout() {
+      sessionStorage.removeItem('staffLoggedIn');
+      window.location.href = 'login.html';
+    }
+
     let currentFilter = 'all';
 
     // --- Filter tab handlers ---

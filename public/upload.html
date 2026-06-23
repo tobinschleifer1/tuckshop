@@ -5,6 +5,12 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Tuck Shop — Import Students</title>
   <link rel="stylesheet" href="style.css" />
+  <script>
+    // Guard — only logged-in staff can reach the import page
+    if (sessionStorage.getItem('staffLoggedIn') !== 'true') {
+      window.location.href = 'staff-login.html';
+    }
+  </script>
   <style>
     /* Drag-and-drop upload zone — local to this page */
     .upload-zone {
@@ -153,7 +159,10 @@
   <div class="app-shell">
     <header class="top-bar">
       <h1>Import Students</h1>
-      <div class="student-info" onclick="window.location.href='staff.html'" style="cursor:pointer;">← Back</div>
+      <div class="header-actions">
+        <button class="header-btn" onclick="window.location.href='staff.html'">← Dashboard</button>
+        <button class="header-btn" onclick="staffLogout()">Log out</button>
+      </div>
     </header>
 
     <main class="page-content">
@@ -233,6 +242,12 @@
   <script src="https://cdn.sheetjs.com/xlsx-0.20.2/package/dist/xlsx.full.min.js"></script>
 
   <script>
+    // Log out — clear the staff flag and return to the main login page
+    function staffLogout() {
+      sessionStorage.removeItem('staffLoggedIn');
+      window.location.href = 'login.html';
+    }
+
     const fileInput = document.getElementById('fileInput');
     const uploadZone = document.getElementById('uploadZone');
     const importBtn = document.getElementById('importBtn');

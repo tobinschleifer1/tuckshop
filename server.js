@@ -14,6 +14,28 @@ const PORT = process.env.PORT || 3000;
 app.use(express.json());
 app.use(express.static('public'));
 
+// The staff password. Falls back to a default for local use, but can be
+// overridden with the STAFF_PASSWORD environment variable so the real
+// password never has to live in the public code.
+const STAFF_PASSWORD = process.env.STAFF_PASSWORD || 'Rathkeale#Tuck2026';
+
+// ─── STAFF AUTH ──────────────────────────────────────────────────────────────
+
+/**
+ * Check the staff password.
+ * Expects: { password: "..." } and returns { success: true } if it matches.
+ */
+app.post('/api/staff/login', (req, res) => {
+  const { password } = req.body;
+
+  if (password === STAFF_PASSWORD) {
+    return res.json({ success: true });
+  }
+
+  // 401 Unauthorised if the password is wrong
+  res.status(401).json({ success: false, error: 'Incorrect password' });
+});
+
 // ─── STUDENT ROUTES ────────────────────────────────────────────────────────
 
 /**

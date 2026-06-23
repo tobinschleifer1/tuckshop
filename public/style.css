@@ -102,6 +102,28 @@ body {
   border-radius: 999px;
 }
 
+/* Header action buttons (e.g. + Students, Log out) */
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.header-btn {
+  font-size: 12px;
+  font-weight: 600;
+  color: #fff;
+  background: rgba(255, 255, 255, 0.14);
+  border: none;
+  padding: 7px 12px;
+  border-radius: 999px;
+  cursor: pointer;
+  transition: background 0.15s;
+  white-space: nowrap;
+}
+
+.header-btn:hover { background: rgba(255, 255, 255, 0.26); }
+
 /* ── Page content area ── */
 .page-content {
   flex: 1;

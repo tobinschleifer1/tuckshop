@@ -10,7 +10,10 @@
   <div class="app-shell">
     <header class="top-bar">
       <h1>Menu</h1>
-      <div id="studentInfo" class="student-info"></div>
+      <div class="header-actions">
+        <span id="studentInfo" class="student-info"></span>
+        <button class="header-btn" onclick="studentLogout()">Log out</button>
+      </div>
     </header>
 
     <main class="page-content">
@@ -45,6 +48,14 @@
     if (!student) window.location.href = 'login.html';
 
     document.getElementById('studentInfo').textContent = student.name;
+
+    // Log out — clear the student's session and return to the login page
+    function studentLogout() {
+      sessionStorage.removeItem('student');
+      sessionStorage.removeItem('cart');
+      sessionStorage.removeItem('break');
+      window.location.href = 'login.html';
+    }
 
     // --- Break toggle ---
     document.querySelectorAll('.toggle-btn').forEach(btn => {
