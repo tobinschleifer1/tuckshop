@@ -1,0 +1,566 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Tuck Shop — Import Students</title>
+  <link rel="stylesheet" href="style.css" />
+  <style>
+    /* Drag-and-drop upload zone — local to this page */
+    .upload-zone {
+      border: 2px dashed var(--border-strong);
+      border-radius: var(--radius);
+      background: #fff;
+      padding: 32px 20px;
+      text-align: center;
+      cursor: pointer;
+      transition: border-color 0.2s, background 0.2s;
+    }
+    .upload-zone:hover,
+    .upload-zone.dragover {
+      border-color: var(--red);
+      background: var(--red-tint);
+    }
+    .upload-icon { font-size: 36px; margin-bottom: 8px; }
+    .upload-hint { font-size: 13px; color: var(--text-muted); margin-top: 6px; }
+    .file-name { font-weight: 600; color: var(--green); margin-top: 10px; font-size: 14px; }
+
+    .result-box {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 8px;
+      margin-top: 14px;
+    }
+    .result-stat {
+      background: #fff;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 12px 6px;
+      text-align: center;
+      cursor: pointer;
+      transition: border-color 0.15s, transform 0.1s, box-shadow 0.15s;
+    }
+    .result-stat:hover { box-shadow: var(--shadow-md); }
+    .result-stat:active { transform: scale(0.97); }
+    .result-stat.selected { border-color: var(--red); box-shadow: 0 0 0 2px var(--red-tint); }
+
+    .detail-hint {
+      text-align: center;
+      font-size: 12px;
+      color: var(--text-muted);
+      margin-top: 10px;
+    }
+
+    .detail-panel {
+      margin-top: 12px;
+      background: #fff;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 14px;
+      max-height: 320px;
+      overflow-y: auto;
+    }
+    .detail-title {
+      font-size: 13px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      margin-bottom: 8px;
+    }
+    .detail-item {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 7px 0;
+      border-bottom: 1px solid var(--border);
+      font-size: 14px;
+    }
+    .detail-item:last-child { border-bottom: none; }
+    .detail-item .sn { color: var(--text-muted); font-size: 12px; margin-left: auto; }
+    .detail-item .reason {
+      color: var(--error-text);
+      font-size: 11px;
+      margin-left: auto;
+      font-weight: 600;
+    }
+    .detail-empty { color: var(--text-muted); font-size: 13px; padding: 6px 0; }
+    .result-num { font-size: 24px; font-weight: 800; line-height: 1.1; }
+    .result-num.added { color: var(--green); }
+    .result-num.skipped { color: var(--warning-text); }
+    .result-num.invalid { color: var(--red); }
+    .result-label {
+      font-size: 10px;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      color: var(--text-muted);
+      font-weight: 700;
+      margin-top: 2px;
+    }
+
+    /* Toolbar above the student list */
+    .list-toolbar {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 12px 14px;
+      border-bottom: 1px solid var(--border);
+      background: #faf7f2;
+    }
+    .select-all {
+      display: flex;
+      align-items: center;
+      gap: 7px;
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--text-soft);
+      cursor: pointer;
+    }
+    .sel-count { font-size: 12px; color: var(--text-muted); margin-left: 2px; }
+    .btn-delete {
+      margin-left: auto;
+      padding: 8px 16px;
+      border: none;
+      border-radius: var(--radius-sm);
+      background: var(--red);
+      color: #fff;
+      font-size: 13px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: opacity 0.15s, background 0.15s;
+    }
+    .btn-delete:disabled { opacity: 0.4; cursor: not-allowed; }
+    .btn-delete:not(:disabled):hover { background: var(--red-dark); }
+
+    /* Checkbox sizing */
+    input[type="checkbox"] { width: 17px; height: 17px; accent-color: var(--red); cursor: pointer; }
+
+    /* Sorted student preview list */
+    .student-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 8px 14px;
+      border-bottom: 1px solid var(--border);
+      font-size: 14px;
+    }
+    .student-row:last-child { border-bottom: none; }
+    .student-row.checked { background: var(--red-tint); }
+    .student-row .avatar { width: 32px; height: 32px; font-size: 14px; }
+    .student-row .sn { color: var(--text-muted); font-size: 12px; margin-left: auto; }
+  </style>
+</head>
+<body>
+  <div class="app-shell">
+    <header class="top-bar">
+      <h1>Import Students</h1>
+      <div class="student-info" onclick="window.location.href='staff.html'" style="cursor:pointer;">← Back</div>
+    </header>
+
+    <main class="page-content">
+
+      <!-- Upload zone -->
+      <div class="card" style="display:flex; flex-direction:column; gap:12px;">
+        <div>
+          <h2 style="font-size:16px; font-weight:700;">Upload student list</h2>
+          <p class="subtitle">Accepts <code>.xlsx</code>, <code>.xls</code> or <code>.csv</code> — any file is auto-converted</p>
+        </div>
+
+        <div class="upload-zone" id="uploadZone">
+          <div class="upload-icon">📄</div>
+          <div style="font-weight:600;">Tap to choose a file</div>
+          <div class="upload-hint">Excel or CSV — or drag and drop it here</div>
+          <div class="file-name hidden" id="fileName"></div>
+        </div>
+
+        <!-- Hidden native file input triggered by the zone -->
+        <input type="file" id="fileInput" accept=".csv,.xlsx,.xls" class="hidden" />
+
+        <p id="uploadError" class="error-msg hidden"></p>
+
+        <button class="btn btn-success" id="importBtn" disabled
+                style="opacity:0.5;">Import &amp; Sort</button>
+
+        <!-- Results appear here after import -->
+        <div id="resultArea" class="hidden">
+          <p class="success-msg" id="resultMsg"></p>
+          <div class="result-box">
+            <div class="result-stat" id="statAdded" data-cat="added">
+              <div class="result-num added" id="numAdded">0</div>
+              <div class="result-label">Added</div>
+            </div>
+            <div class="result-stat" id="statSkipped" data-cat="skipped">
+              <div class="result-num skipped" id="numSkipped">0</div>
+              <div class="result-label">Already in</div>
+            </div>
+            <div class="result-stat" id="statInvalid" data-cat="invalid">
+              <div class="result-num invalid" id="numInvalid">0</div>
+              <div class="result-label">Invalid</div>
+            </div>
+          </div>
+          <p class="detail-hint" id="detailHint">Tap a box above to see which students</p>
+
+          <!-- Expandable detail panel — shows the chosen category's list -->
+          <div id="detailPanel" class="detail-panel hidden">
+            <div class="detail-title" id="detailTitle"></div>
+            <div id="detailList"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Sorted student list, auto-refreshed after import -->
+      <div class="date-group-header">All students (A–Z)</div>
+      <div class="card" style="padding:0; overflow:hidden;">
+
+        <!-- Toolbar: select all + delete selected -->
+        <div class="list-toolbar">
+          <label class="select-all">
+            <input type="checkbox" id="selectAll" />
+            <span>Select all</span>
+          </label>
+          <span class="sel-count" id="selCount"></span>
+          <button class="btn-delete" id="deleteBtn" disabled>Delete</button>
+        </div>
+
+        <div id="studentList">
+          <p class="empty-msg" style="border:none; padding:20px 0;">Loading…</p>
+        </div>
+      </div>
+
+    </main>
+  </div>
+
+  <!-- SheetJS — third-party library that reads Excel and CSV files in the browser -->
+  <script src="https://cdn.sheetjs.com/xlsx-0.20.2/package/dist/xlsx.full.min.js"></script>
+
+  <script>
+    const fileInput = document.getElementById('fileInput');
+    const uploadZone = document.getElementById('uploadZone');
+    const importBtn = document.getElementById('importBtn');
+    const fileNameEl = document.getElementById('fileName');
+    const uploadError = document.getElementById('uploadError');
+
+    let csvText = null; // holds the raw text of the chosen file
+    let resultLists = { added: [], skipped: [], invalid: [] }; // detail for each box
+
+    // --- Clicking the zone opens the file picker ---
+    uploadZone.addEventListener('click', () => fileInput.click());
+
+    // --- Drag and drop handling ---
+    uploadZone.addEventListener('dragover', (e) => {
+      e.preventDefault();
+      uploadZone.classList.add('dragover');
+    });
+    uploadZone.addEventListener('dragleave', () => uploadZone.classList.remove('dragover'));
+    uploadZone.addEventListener('drop', (e) => {
+      e.preventDefault();
+      uploadZone.classList.remove('dragover');
+      if (e.dataTransfer.files.length > 0) handleFile(e.dataTransfer.files[0]);
+    });
+
+    // --- File chosen through the picker ---
+    fileInput.addEventListener('change', () => {
+      if (fileInput.files.length > 0) handleFile(fileInput.files[0]);
+    });
+
+    // Read the chosen file, auto-convert it to CSV, and enable the import button
+    function handleFile(file) {
+      uploadError.classList.add('hidden');
+
+      // Accept Excel and CSV files — anything SheetJS can read
+      const lower = file.name.toLowerCase();
+      const allowed = lower.endsWith('.csv') || lower.endsWith('.xlsx') || lower.endsWith('.xls');
+      if (!allowed) {
+        showError('Please choose a .csv, .xlsx or .xls file.');
+        return;
+      }
+
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        try {
+          // SheetJS reads the raw bytes of any spreadsheet format
+          const data = new Uint8Array(e.target.result);
+          const workbook = XLSX.read(data, { type: 'array' });
+
+          // Convert and normalise the columns into our CSV format
+          const { csv, detected } = buildCsvFromWorkbook(workbook);
+          csvText = csv;
+
+          fileNameEl.textContent = `Selected: ${file.name} — ${detected} students detected`;
+          fileNameEl.classList.remove('hidden');
+          importBtn.disabled = false;
+          importBtn.style.opacity = '1';
+        } catch (err) {
+          console.error('Conversion error:', err);
+          showError('Could not read that file. Is it a valid spreadsheet?');
+        }
+      };
+      // Read as an array buffer so SheetJS can handle binary Excel files
+      reader.readAsArrayBuffer(file);
+    }
+
+    /**
+     * Turn any uploaded spreadsheet into our CSV format.
+     *
+     * Maps the school's export columns (Student ID / First Name / Last Name)
+     * OR an already-correct file (school_number / name) onto the three columns
+     * our import API expects: school_number, name, photo_url.
+     */
+    function buildCsvFromWorkbook(workbook) {
+      // Use the first sheet in the file
+      const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
+      const rawRows = XLSX.utils.sheet_to_json(firstSheet, { defval: '' });
+
+      const out = [['school_number', 'name', 'photo_url']];
+      let detected = 0;
+
+      rawRows.forEach((row) => {
+        // Build a lower-cased key lookup so column names are matched loosely
+        const cols = {};
+        Object.keys(row).forEach((k) => { cols[k.trim().toLowerCase()] = row[k]; });
+
+        // School number — try several common header names
+        const schoolNumber =
+          cols['school_number'] ?? cols['student id'] ?? cols['studentid'] ?? cols['id'] ?? '';
+
+        // Name — use a single name column, or join first + last name
+        let name = cols['name'] ?? '';
+        if (!String(name).trim()) {
+          const first = cols['first name'] ?? cols['firstname'] ?? '';
+          const last = cols['last name'] ?? cols['lastname'] ?? '';
+          name = `${first} ${last}`.trim();
+        }
+
+        const photo = cols['photo_url'] ?? '';
+
+        // Strip commas so the simple server-side CSV parser isn't broken by them
+        const clean = (v) => String(v).trim().replace(/,/g, ' ');
+
+        // Keep every row (even incomplete ones) so the server can flag invalids
+        if (clean(schoolNumber) && clean(name)) detected += 1;
+        out.push([clean(schoolNumber), clean(name), clean(photo)]);
+      });
+
+      // Join the rows back into CSV text
+      const csv = out.map((r) => r.join(',')).join('\n');
+      return { csv, detected };
+    }
+
+    function showError(msg) {
+      uploadError.textContent = msg;
+      uploadError.classList.remove('hidden');
+    }
+
+    // --- Send the CSV text to the server ---
+    importBtn.addEventListener('click', async () => {
+      if (!csvText) return;
+
+      importBtn.disabled = true;
+      importBtn.textContent = 'Importing…';
+
+      try {
+        const response = await fetch('/api/students/import', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ csv: csvText }),
+        });
+
+        const result = await response.json();
+
+        if (!response.ok) {
+          showError(result.error || 'Import failed.');
+          importBtn.textContent = 'Import & Sort';
+          importBtn.disabled = false;
+          return;
+        }
+
+        // Show the result counts
+        document.getElementById('numAdded').textContent = result.added;
+        document.getElementById('numSkipped').textContent = result.skipped;
+        document.getElementById('numInvalid').textContent = result.invalid;
+        document.getElementById('resultMsg').textContent =
+          `Imported ${result.added} new student${result.added === 1 ? '' : 's'} and sorted them alphabetically.`;
+        document.getElementById('resultArea').classList.remove('hidden');
+
+        // Store the detail lists so the boxes can be expanded
+        resultLists = {
+          added: result.addedList || [],
+          skipped: result.skippedList || [],
+          invalid: result.invalidList || [],
+        };
+
+        // Reset any open detail panel from a previous import
+        document.getElementById('detailPanel').classList.add('hidden');
+        document.querySelectorAll('.result-stat').forEach(s => s.classList.remove('selected'));
+
+        importBtn.textContent = 'Import & Sort';
+
+        // Refresh the sorted list
+        loadStudents();
+      } catch (err) {
+        console.error('Import error:', err);
+        showError('Something went wrong uploading the file.');
+        importBtn.textContent = 'Import & Sort';
+        importBtn.disabled = false;
+      }
+    });
+
+    // --- Student list with selection + delete ---
+    const selectAllEl = document.getElementById('selectAll');
+    const deleteBtn = document.getElementById('deleteBtn');
+    const selCount = document.getElementById('selCount');
+
+    // Load and display the sorted student list with a checkbox per row
+    async function loadStudents() {
+      const response = await fetch('/api/students');
+      const students = await response.json();
+      const list = document.getElementById('studentList');
+
+      if (students.length === 0) {
+        list.innerHTML = '<p class="empty-msg" style="border:none; padding:20px 0;">No students yet. Upload a file to get started.</p>';
+        selectAllEl.checked = false;
+        updateSelection();
+        return;
+      }
+
+      list.innerHTML = '';
+      students.forEach(s => {
+        const row = document.createElement('div');
+        row.className = 'student-row';
+        row.innerHTML = `
+          <input type="checkbox" class="row-check" value="${s.school_number}" />
+          <div class="avatar">${s.name.charAt(0)}</div>
+          <span>${s.name}</span>
+          <span class="sn">${s.school_number}</span>
+        `;
+        list.appendChild(row);
+      });
+
+      // Each row checkbox updates the count and highlights its row
+      list.querySelectorAll('.row-check').forEach(cb => {
+        cb.addEventListener('change', () => {
+          cb.closest('.student-row').classList.toggle('checked', cb.checked);
+          updateSelection();
+        });
+      });
+
+      // Reset the select-all box whenever the list reloads
+      selectAllEl.checked = false;
+      updateSelection();
+    }
+
+    // Count how many are selected and enable/disable the delete button
+    function updateSelection() {
+      const checks = [...document.querySelectorAll('.row-check')];
+      const selected = checks.filter(c => c.checked);
+
+      deleteBtn.disabled = selected.length === 0;
+      selCount.textContent = selected.length > 0 ? `${selected.length} selected` : '';
+
+      // Keep the select-all box in sync: all / none / some (indeterminate)
+      if (checks.length > 0 && selected.length === checks.length) {
+        selectAllEl.checked = true;
+        selectAllEl.indeterminate = false;
+      } else if (selected.length === 0) {
+        selectAllEl.checked = false;
+        selectAllEl.indeterminate = false;
+      } else {
+        selectAllEl.indeterminate = true;
+      }
+    }
+
+    // Select-all toggles every row checkbox at once
+    selectAllEl.addEventListener('change', () => {
+      document.querySelectorAll('.row-check').forEach(cb => {
+        cb.checked = selectAllEl.checked;
+        cb.closest('.student-row').classList.toggle('checked', cb.checked);
+      });
+      updateSelection();
+    });
+
+    // Delete the selected students, after a confirmation prompt
+    deleteBtn.addEventListener('click', async () => {
+      const selected = [...document.querySelectorAll('.row-check:checked')].map(c => c.value);
+      if (selected.length === 0) return;
+
+      // Deleting is irreversible — confirm first
+      const ok = confirm(
+        `Delete ${selected.length} student${selected.length === 1 ? '' : 's'}? This cannot be undone.`
+      );
+      if (!ok) return;
+
+      try {
+        const response = await fetch('/api/students/delete', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ school_numbers: selected }),
+        });
+        const result = await response.json();
+        if (result.success) loadStudents();
+      } catch (err) {
+        console.error('Delete error:', err);
+      }
+    });
+
+    // --- Clicking a result box shows that category's students ---
+    document.querySelectorAll('.result-stat').forEach(box => {
+      box.addEventListener('click', () => showDetail(box.dataset.cat, box));
+    });
+
+    function showDetail(category, box) {
+      const panel = document.getElementById('detailPanel');
+      const title = document.getElementById('detailTitle');
+      const listEl = document.getElementById('detailList');
+
+      // Tapping the already-selected box again closes the panel
+      if (box.classList.contains('selected')) {
+        box.classList.remove('selected');
+        panel.classList.add('hidden');
+        return;
+      }
+
+      // Highlight only the chosen box
+      document.querySelectorAll('.result-stat').forEach(s => s.classList.remove('selected'));
+      box.classList.add('selected');
+
+      const titles = {
+        added: 'Added students',
+        skipped: 'Already in the database',
+        invalid: 'Invalid rows',
+      };
+      title.textContent = titles[category];
+
+      const list = resultLists[category];
+      listEl.innerHTML = '';
+
+      if (!list || list.length === 0) {
+        listEl.innerHTML = '<div class="detail-empty">None in this category.</div>';
+      } else {
+        list.forEach(entry => {
+          const row = document.createElement('div');
+          row.className = 'detail-item';
+
+          if (category === 'invalid') {
+            // Invalid rows show the line content and the reason it failed
+            row.innerHTML = `
+              <span>Line ${entry.line}: ${entry.content || '(blank)'}</span>
+              <span class="reason">${entry.reason}</span>
+            `;
+          } else {
+            // Added / skipped rows show the student name and school number
+            row.innerHTML = `
+              <div class="avatar">${(entry.name || '?').charAt(0)}</div>
+              <span>${entry.name}</span>
+              <span class="sn">${entry.school_number}</span>
+            `;
+          }
+          listEl.appendChild(row);
+        });
+      }
+
+      panel.classList.remove('hidden');
+    }
+
+    loadStudents();
+  </script>
+</body>
+</html>
