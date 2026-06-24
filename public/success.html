@@ -20,7 +20,13 @@
         <!-- Green tick icon -->
         <div class="success-icon">✓</div>
         <h2 class="success-heading">You're all set!</h2>
-        <p class="success-sub">Your order has been placed. Pick it up at the tuck shop.</p>
+        <p class="success-sub">Show this code at the tuck shop to collect your order.</p>
+
+        <!-- Confirmation code — the student shows this to staff -->
+        <div class="code-box">
+          <div class="code-label">Your confirmation code</div>
+          <div class="code-value" id="codeValue">—</div>
+        </div>
 
         <hr class="divider-line" />
 
@@ -49,7 +55,8 @@
         </div>
       </div>
 
-      <button class="btn btn-primary" onclick="window.location.href='login.html'">Back to Menu</button>
+      <button class="btn btn-success" id="manageBtn">Check or cancel this order</button>
+      <button class="btn btn-ghost" onclick="window.location.href='login.html'">Back to login</button>
     </main>
   </div>
 
@@ -81,6 +88,14 @@
 
     // Total in red as per design spec
     document.getElementById('receiptTotal').textContent = `$${order.total.toFixed(2)}`;
+
+    // Show the confirmation code the student needs to collect their order
+    document.getElementById('codeValue').textContent = order.code || '—';
+
+    // "Check or cancel" jumps to the status page pre-filled with this code
+    document.getElementById('manageBtn').addEventListener('click', () => {
+      window.location.href = `order-status.html?code=${order.code || ''}`;
+    });
 
     // Clear the cart from session so a fresh order starts clean
     sessionStorage.removeItem('cart');

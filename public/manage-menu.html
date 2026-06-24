@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Tuck Shop — Manage Menu</title>
+  <link rel="stylesheet" href="style.css" />
+  <script>
+    // Guard — only logged-in staff can manage the menu
+    if (sessionStorage.getItem('staffLoggedIn') !== 'true') {
+      window.location.href = 'staff-login.html';
+    }
+  </script>
+  <style>
+    .menu-edit-card { margin-bottom: 12px; display: flex; flex-direction: column; gap: 10px; }
+    .field-row { display: flex; gap: 8px; }
+    .field { flex: 1; display: flex; flex-direction: column; gap: 4px; }
+    .field label {
+      font-size: 11px; font-weight: 700; text-transform: uppercase;
+      letter-spacing: 0.8px; color: var(--text-muted);
+    }
+    .field .input-field { padding: 10px 12px; font-size: 15px; }
+    .avail-toggle {
+      display: flex; align-items: center; gap: 8px;
+      font-size: 14px; font-weight: 600; color: var(--text-soft);
+    }
+    .edit-actions { display: flex; gap: 8px; }
+    .edit-actions .btn { padding: 11px; font-size: 14px; }
+    .btn-save { flex: 2; }
+    .btn-del {
+      flex: 1; border: 1.5px solid var(--red); background: #fff; color: var(--red);
+      border-radius: var(--radius); font-weight: 600; cursor: pointer;
+    }
+    .btn-del:hover { background: var(--red-tint); }
+    .saved-flash { animation: savedFlash 1.2s ease; }
+    @keyframes savedFlash { 0%,100% { box-shadow: var(--shadow-sm); } 30% { box-shadow: 0 0 0 3px var(--green); } }
+    .limit-hint { font-size: 11px; color: var(--text-muted); }
+  </style>
+</head>
+<body>
+  <div class="app-shell">
+    <header class="top-bar">
+      <h1>Manage Menu</h1>
+      <div class="header-actions">
+        <button class="header-btn" onclick="window.location.href='staff.html'">← Dashboard</button>
+        <button class="header-btn" onclick="staffLogout()">Log out</button>
+      </div>
+    </header>
+
+    <main class="page-content">
+
+      <!-- Add a new item -->
+      <div class="card menu-edit-card">
+        <h2 style="font-size:16px; font-weight:700;">Add a new item</h2>
+        <div class="field-row">
+          <div class="field" style="flex:2;">
+            <label>Name</label>
+            <input type="text" id="newName" class="input-field" placeholder="e.g. Apple" />
+          </div>
+          <div class="field">
+            <label>Price $</label>
+            <input type="number" id="newPrice" class="input-field" placeholder="1.50" step="0.10" min="0" />
+          </div>
+        </div>
+        <div class="field-row">
+          <div class="field">
+            <label>Daily limit</label>
+            <input type="number" id="newLimit" class="input-field" placeholder="0" min="0" />
+            <span class="limit-hint">0 = no limit</span>
+          </div>
+          <div class="field">
+            <label>Available</label>
+            <label class="avail-toggle"><input type="checkbox" id="newAvail" checked /> On sale</label>
+          </div>
+        </div>
+        <p id="addError" class="error-msg hidden"></p>
+        <button class="btn btn-success" id="addBtn">Add item</button>
+      </div>
+
+      <div class="date-group-header">Current menu</div>
+      <div id="menuList"></div>
+
+    </main>
+  </div>
+
+  <script>
+    function staffLogout() {
+      sessionStorage.removeItem('staffLoggedIn');
+      window.location.href = 'login.html';
+    }
+
+    // Load every menu item and render an editable card for each
+    async function loadMenu() {
+      const response = await fetch('/api/menu');
+      const items = await response.json();
+      const list = document.getElementById('menuList');
+      list.innerHTML = '';
+
+      items.forEach(item => {
+        const card = document.createElement('div');
+        card.className = 'card menu-edit-card';
+        card.id = `item-${item.id}`;
+        card.innerHTML = `
+          <div class="field-row">
+            <div class="field" style="flex:2;">
+              <label>Name</label>
+              <input type="text" class="input-field f-name" value="${item.name.replace(/"/g, '&quot;')}" />
+            </div>
+            <div class="field">
+              <label>Price $</label>
+              <input type="number" class="input-field f-price" value="${item.price}" step="0.10" min="0" />
+            </div>
+          </div>
+          <div class="field-row">
+            <div class="field">
+              <label>Daily limit</label>
+              <input type="number" class="input-field f-limit" value="${item.daily_limit}" min="0" />
+              <span class="limit-hint">0 = no limit</span>
+            </div>
+            <div class="field">
+              <label>Available</label>
+              <label class="avail-toggle">
+                <input type="checkbox" class="f-avail" ${item.available ? 'checked' : ''} /> On sale
+              </label>
+            </div>
+          </div>
+          <div class="edit-actions">
+            <button class="btn btn-success btn-save" onclick="saveItem(${item.id})">Save</button>
+            <button class="btn-del" onclick="deleteItem(${item.id}, '${item.name.replace(/'/g, "\\'")}')">Delete</button>
+          </div>
+        `;
+        list.appendChild(card);
+      });
+    }
+
+    // Save the edited values for one item
+    async function saveItem(id) {
+      const card = document.getElementById(`item-${id}`);
+      const payload = {
+        name: card.querySelector('.f-name').value.trim(),
+        price: parseFloat(card.querySelector('.f-price').value),
+        daily_limit: parseInt(card.querySelector('.f-limit').value, 10) || 0,
+        available: card.querySelector('.f-avail').checked,
+      };
+
+      const response = await fetch(`/api/menu/${id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+
+      if (response.ok) {
+        // Flash the card green to confirm it saved
+        card.classList.add('saved-flash');
+        setTimeout(() => card.classList.remove('saved-flash'), 1200);
+      }
+    }
+
+    // Delete an item after confirming
+    async function deleteItem(id, name) {
+      if (!confirm(`Delete "${name}" from the menu?`)) return;
+      await fetch(`/api/menu/${id}`, { method: 'DELETE' });
+      loadMenu();
+    }
+
+    // Add a brand new item
+    document.getElementById('addBtn').addEventListener('click', async () => {
+      const addError = document.getElementById('addError');
+      addError.classList.add('hidden');
+
+      const payload = {
+        name: document.getElementById('newName').value.trim(),
+        price: parseFloat(document.getElementById('newPrice').value),
+        daily_limit: parseInt(document.getElementById('newLimit').value, 10) || 0,
+        available: document.getElementById('newAvail').checked,
+      };
+
+      if (!payload.name || isNaN(payload.price)) {
+        addError.textContent = 'Enter a name and a valid price.';
+        addError.classList.remove('hidden');
+        return;
+      }
+
+      const response = await fetch('/api/menu', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+
+      if (response.ok) {
+        // Clear the form and reload the list
+        document.getElementById('newName').value = '';
+        document.getElementById('newPrice').value = '';
+        document.getElementById('newLimit').value = '';
+        document.getElementById('newAvail').checked = true;
+        loadMenu();
+      }
+    });
+
+    loadMenu();
+  </script>
+</body>
+</html>

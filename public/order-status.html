@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0" />
+  <title>Tuck Shop — Order Status</title>
+  <link rel="stylesheet" href="style.css" />
+  <style>
+    .status-pill {
+      display: inline-block;
+      padding: 6px 14px;
+      border-radius: 999px;
+      font-size: 13px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+    }
+    .status-pending   { background: #FFF3CD; color: #7A5800; }
+    .status-collected { background: var(--green-tint); color: var(--success-text); }
+    .status-cancelled { background: var(--red-tint); color: var(--error-text); }
+    .notify-banner {
+      background: var(--red-tint);
+      color: var(--error-text);
+      border-left: 3px solid var(--red);
+      padding: 12px 14px;
+      border-radius: var(--radius);
+      font-size: 14px;
+      font-weight: 500;
+    }
+  </style>
+</head>
+<body>
+  <div class="app-shell">
+    <header class="top-bar">
+      <h1>Order Status</h1>
+      <div class="header-actions">
+        <button class="header-btn" onclick="window.location.href='login.html'">Login</button>
+      </div>
+    </header>
+
+    <main class="page-content">
+
+      <!-- Code lookup -->
+      <div class="card" style="display:flex; flex-direction:column; gap:12px;">
+        <div>
+          <h2 style="font-size:16px; font-weight:700;">Find your order</h2>
+          <p class="subtitle">Enter the confirmation code from your receipt</p>
+        </div>
+        <input type="text" id="codeInput" class="input-field" placeholder="e.g. K7QP2"
+               maxlength="5" style="text-transform:uppercase; letter-spacing:4px; font-weight:700; text-align:center;" />
+        <p id="lookupError" class="error-msg hidden"></p>
+        <button class="btn btn-primary" id="checkBtn">Check status</button>
+      </div>
+
+      <!-- Order detail appears here -->
+      <div id="orderDetail" class="hidden">
+        <div class="card confirm-card" style="margin-top:14px;">
+
+          <!-- Notification banner if staff cancelled it -->
+          <div id="notifyBanner" class="notify-banner hidden"></div>
+
+          <div class="confirm-row">
+            <span class="confirm-label">Status</span>
+            <span id="statusPill"></span>
+          </div>
+          <div class="confirm-row">
+            <span class="confirm-label">Break</span>
+            <span id="detailBreak"></span>
+          </div>
+
+          <hr class="divider-line" />
+          <div id="detailItems"></div>
+          <hr class="divider-line" />
+
+          <div class="confirm-row total-row">
+            <span>Total</span>
+            <span id="detailTotal" class="total-red"></span>
+          </div>
+        </div>
+
+        <!-- Cancel button — only shown for active orders -->
+        <button class="btn btn-primary" id="cancelOrderBtn" style="margin-top:12px; background:var(--red);">
+          Cancel this order
+        </button>
+        <p id="cancelMsg" class="success-msg hidden" style="margin-top:10px;"></p>
+      </div>
+
+    </main>
+  </div>
+
+  <script>
+    const codeInput = document.getElementById('codeInput');
+    const lookupError = document.getElementById('lookupError');
+    let currentOrder = null;
+
+    // Look up an order by its confirmation code
+    async function checkStatus(code) {
+      lookupError.classList.add('hidden');
+      if (!code) return;
+
+      try {
+        const response = await fetch(`/api/order/${code}`);
+        if (!response.ok) {
+          lookupError.textContent = 'No order found with that code.';
+          lookupError.classList.remove('hidden');
+          document.getElementById('orderDetail').classList.add('hidden');
+          return;
+        }
+        currentOrder = await response.json();
+        renderOrder(currentOrder);
+      } catch (err) {
+        console.error('Status lookup error:', err);
+      }
+    }
+
+    // Show the order details and the right status
+    function renderOrder(order) {
+      document.getElementById('orderDetail').classList.remove('hidden');
+
+      // Work out the status
+      const pill = document.getElementById('statusPill');
+      const notify = document.getElementById('notifyBanner');
+      const cancelBtn = document.getElementById('cancelOrderBtn');
+      notify.classList.add('hidden');
+
+      if (order.cancelled) {
+        pill.className = 'status-pill status-cancelled';
+        pill.textContent = 'Cancelled';
+        cancelBtn.classList.add('hidden');
+        // If staff cancelled it, tell the student (this is the notification)
+        if (order.cancelled_by === 'staff') {
+          notify.textContent = 'This order was cancelled by the tuck shop staff.';
+          notify.classList.remove('hidden');
+        }
+      } else if (order.collected) {
+        pill.className = 'status-pill status-collected';
+        pill.textContent = 'Collected';
+        cancelBtn.classList.add('hidden');
+      } else {
+        pill.className = 'status-pill status-pending';
+        pill.textContent = 'Pending';
+        cancelBtn.classList.remove('hidden');
+      }
+
+      document.getElementById('detailBreak').textContent =
+        order.break_time === 'morning_tea' ? 'Morning Tea' : 'Lunch';
+
+      // Itemised list
+      const itemsEl = document.getElementById('detailItems');
+      itemsEl.innerHTML = '';
+      order.items.forEach(item => {
+        const row = document.createElement('div');
+        row.className = 'confirm-row';
+        row.innerHTML = `
+          <span>${item.name} × ${item.quantity}</span>
+          <span>$${(item.price * item.quantity).toFixed(2)}</span>
+        `;
+        itemsEl.appendChild(row);
+      });
+
+      document.getElementById('detailTotal').textContent = `$${order.total.toFixed(2)}`;
+    }
+
+    // Cancel the order
+    document.getElementById('cancelOrderBtn').addEventListener('click', async () => {
+      if (!currentOrder) return;
+      if (!confirm('Cancel this order? This cannot be undone.')) return;
+
+      try {
+        const response = await fetch(`/api/order/${currentOrder.code}/cancel`, { method: 'PUT' });
+        const result = await response.json();
+        if (result.success) {
+          document.getElementById('cancelMsg').textContent = 'Your order has been cancelled.';
+          document.getElementById('cancelMsg').classList.remove('hidden');
+          checkStatus(currentOrder.code); // refresh to show cancelled status
+        }
+      } catch (err) {
+        console.error('Cancel error:', err);
+      }
+    });
+
+    document.getElementById('checkBtn').addEventListener('click', () => {
+      checkStatus(codeInput.value.trim().toUpperCase());
+    });
+    codeInput.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') checkStatus(codeInput.value.trim().toUpperCase());
+    });
+
+    // If a code was passed in the URL (?code=...), auto-check it
+    const urlCode = new URLSearchParams(window.location.search).get('code');
+    if (urlCode) {
+      codeInput.value = urlCode.toUpperCase();
+      checkStatus(urlCode.toUpperCase());
+    }
+  </script>
+</body>
+</html>

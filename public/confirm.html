@@ -39,6 +39,9 @@
         </div>
       </div>
 
+      <!-- Shown if the order is rejected (e.g. a daily limit is hit) -->
+      <p id="orderError" class="error-msg hidden" style="margin-top: 14px;"></p>
+
       <div style="display: flex; flex-direction: column; gap: 10px; margin-top: 14px;">
         <button id="confirmBtn" class="btn btn-success">Place Order</button>
         <button id="cancelBtn" class="btn btn-ghost">Back to menu</button>
@@ -86,6 +89,9 @@
         total: total
       };
 
+      const errorEl = document.getElementById('orderError');
+      errorEl.classList.add('hidden');
+
       try {
         const response = await fetch('/api/order', {
           method: 'POST',
@@ -93,12 +99,21 @@
           body: JSON.stringify(orderPayload)
         });
         const result = await response.json();
-        if (result.success) {
+
+        if (response.ok && result.success) {
+          // Save the order plus its confirmation code for the success page
+          orderPayload.code = result.code;
           sessionStorage.setItem('lastOrder', JSON.stringify(orderPayload));
           window.location.href = 'success.html';
+        } else {
+          // Show the reason (e.g. a daily limit was reached)
+          errorEl.textContent = result.error || 'Could not place your order.';
+          errorEl.classList.remove('hidden');
         }
       } catch (err) {
         console.error('Order submission error:', err);
+        errorEl.textContent = 'Something went wrong placing your order.';
+        errorEl.classList.remove('hidden');
       }
     });
 

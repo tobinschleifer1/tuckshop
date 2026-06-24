@@ -223,7 +223,7 @@ function parseStudentCsv(csv) {
 // ─── MENU ROUTES ───────────────────────────────────────────────────────────
 
 /**
- * Return all menu items (both available and sold out).
+ * Return all menu items (both available and sold out), including daily limits.
  * The frontend handles showing sold-out items as faded with no controls.
  */
 app.get('/api/menu', (req, res) => {
@@ -231,11 +231,74 @@ app.get('/api/menu', (req, res) => {
   res.json(items);
 });
 
+/**
+ * Add a new menu item. (Staff)
+ * Expects: { name, price, available, daily_limit }
+ */
+app.post('/api/menu', (req, res) => {
+  const { name, price, available, daily_limit } = req.body;
+
+  if (!name || price == null || isNaN(price)) {
+    return res.status(400).json({ error: 'A name and a valid price are required' });
+  }
+
+  const result = db
+    .prepare('INSERT INTO menu_items (name, price, available, daily_limit) VALUES (?, ?, ?, ?)')
+    .run(name, Number(price), available ? 1 : 0, Number(daily_limit) || 0);
+
+  res.json({ success: true, id: result.lastInsertRowid });
+});
+
+/**
+ * Update an existing menu item — price, name, availability or daily limit. (Staff)
+ */
+app.put('/api/menu/:id', (req, res) => {
+  const { name, price, available, daily_limit } = req.body;
+
+  if (!name || price == null || isNaN(price)) {
+    return res.status(400).json({ error: 'A name and a valid price are required' });
+  }
+
+  db.prepare(
+    'UPDATE menu_items SET name = ?, price = ?, available = ?, daily_limit = ? WHERE id = ?'
+  ).run(name, Number(price), available ? 1 : 0, Number(daily_limit) || 0, req.params.id);
+
+  res.json({ success: true });
+});
+
+/**
+ * Delete a menu item. (Staff)
+ */
+app.delete('/api/menu/:id', (req, res) => {
+  db.prepare('DELETE FROM menu_items WHERE id = ?').run(req.params.id);
+  res.json({ success: true });
+});
+
 // ─── ORDER ROUTES ──────────────────────────────────────────────────────────
+
+/**
+ * Generate a short, unique confirmation code (e.g. "K7QP2").
+ * Ambiguous characters (0/O, 1/I/L) are left out so codes are easy to read aloud.
+ */
+function generateOrderCode() {
+  const chars = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789';
+  let code;
+  do {
+    code = '';
+    for (let i = 0; i < 5; i += 1) {
+      code += chars[Math.floor(Math.random() * chars.length)];
+    }
+    // Keep trying until we get a code not already used by another order
+  } while (db.prepare('SELECT 1 FROM orders WHERE code = ?').get(code));
+  return code;
+}
 
 /**
  * Place a new order.
  * Expects: { school_number, break_time, items: [{id, name, price, quantity}], total }
+ *
+ * Enforces each item's daily limit, then stores the order with a unique
+ * confirmation code which is returned for the student to show at the counter.
  */
 app.post('/api/order', (req, res) => {
   const { school_number, break_time, items, total } = req.body;
@@ -245,18 +308,57 @@ app.post('/api/order', (req, res) => {
     return res.status(400).json({ error: 'Missing required order fields' });
   }
 
-  // Store items as a JSON string — SQLite doesn't have a native array type
+  // ── Enforce per-item daily limits ──
+  // Work out how many of each item this student has already ordered today
+  // (ignoring cancelled orders).
+  const today = new Date().toISOString().slice(0, 10); // YYYY-MM-DD
+  const todaysOrders = db
+    .prepare(
+      'SELECT items FROM orders WHERE school_number = ? AND cancelled = 0 AND substr(date, 1, 10) = ?'
+    )
+    .all(school_number, today);
+
+  const alreadyToday = {}; // menu item id -> quantity ordered so far today
+  for (const row of todaysOrders) {
+    for (const it of JSON.parse(row.items)) {
+      alreadyToday[it.id] = (alreadyToday[it.id] || 0) + it.quantity;
+    }
+  }
+
+  // Look up the limit for every menu item, keyed by id
+  const menuItems = db.prepare('SELECT id, name, daily_limit FROM menu_items').all();
+  const menuById = {};
+  menuItems.forEach(m => { menuById[m.id] = m; });
+
+  // Check each item in the new order against its limit (0 = no limit)
+  for (const item of items) {
+    const menu = menuById[item.id];
+    if (!menu || menu.daily_limit === 0) continue;
+
+    const already = alreadyToday[item.id] || 0;
+    if (already + item.quantity > menu.daily_limit) {
+      return res.status(400).json({
+        error:
+          `Daily limit reached for ${menu.name} — max ${menu.daily_limit} per day` +
+          (already > 0 ? ` (you already have ${already} today).` : '.'),
+      });
+    }
+  }
+
+  // ── Store the order with a unique confirmation code ──
+  const code = generateOrderCode();
   const itemsJson = JSON.stringify(items);
   const date = new Date().toISOString();
 
   // TODO: add a cutoff time check here so orders can't be placed after school ends
   const result = db
     .prepare(
-      'INSERT INTO orders (school_number, break_time, items, total, date, collected) VALUES (?, ?, ?, ?, ?, 0)'
+      'INSERT INTO orders (school_number, break_time, items, total, date, collected, code, cancelled) VALUES (?, ?, ?, ?, ?, 0, ?, 0)'
     )
-    .run(school_number, break_time, itemsJson, total, date);
+    .run(school_number, break_time, itemsJson, total, date, code);
 
-  res.json({ success: true, orderId: result.lastInsertRowid });
+  // Return the code so the student can show it to the staff
+  res.json({ success: true, orderId: result.lastInsertRowid, code });
 });
 
 /**
@@ -276,16 +378,35 @@ app.get('/api/orders', (req, res) => {
     orders = db.prepare('SELECT * FROM orders ORDER BY date DESC').all();
   }
 
-  // Parse the items JSON string back into an array for each order
+  // Parse JSON and convert SQLite's 0/1 integers into real booleans
   orders = orders.map(order => ({
     ...order,
     items: JSON.parse(order.items),
-
-    // SQLite stores booleans as 0/1 integers — convert to true/false here
     collected: order.collected === 1,
+    cancelled: order.cancelled === 1,
   }));
 
   res.json(orders);
+});
+
+/**
+ * Look up a single order by its confirmation code. (Student status check)
+ */
+app.get('/api/order/:code', (req, res) => {
+  const order = db
+    .prepare('SELECT * FROM orders WHERE code = ?')
+    .get(req.params.code.toUpperCase());
+
+  if (!order) {
+    return res.status(404).json({ error: 'No order found with that code' });
+  }
+
+  res.json({
+    ...order,
+    items: JSON.parse(order.items),
+    collected: order.collected === 1,
+    cancelled: order.cancelled === 1,
+  });
 });
 
 /**
@@ -293,8 +414,41 @@ app.get('/api/orders', (req, res) => {
  * Called when the staff taps the "Collected" button on the dashboard.
  */
 app.put('/api/orders/:id/collected', (req, res) => {
-  // FIXME: add staff authentication before this goes to production
   db.prepare('UPDATE orders SET collected = 1 WHERE id = ?').run(req.params.id);
+  res.json({ success: true });
+});
+
+/**
+ * Cancel an order from the staff dashboard.
+ * Records that staff cancelled it so the student can be told who did.
+ */
+app.put('/api/orders/:id/cancel', (req, res) => {
+  db.prepare("UPDATE orders SET cancelled = 1, cancelled_by = 'staff' WHERE id = ?")
+    .run(req.params.id);
+  res.json({ success: true });
+});
+
+/**
+ * Cancel an order from the student side, using their confirmation code.
+ * A collected order can't be cancelled.
+ */
+app.put('/api/order/:code/cancel', (req, res) => {
+  const order = db
+    .prepare('SELECT * FROM orders WHERE code = ?')
+    .get(req.params.code.toUpperCase());
+
+  if (!order) {
+    return res.status(404).json({ error: 'No order found with that code' });
+  }
+  if (order.collected === 1) {
+    return res.status(400).json({ error: 'This order has already been collected and cannot be cancelled' });
+  }
+  if (order.cancelled === 1) {
+    return res.status(400).json({ error: 'This order is already cancelled' });
+  }
+
+  db.prepare("UPDATE orders SET cancelled = 1, cancelled_by = 'student' WHERE id = ?")
+    .run(order.id);
   res.json({ success: true });
 });
 

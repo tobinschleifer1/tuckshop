@@ -17,12 +17,21 @@
     <header class="top-bar">
       <h1>Staff Dashboard</h1>
       <div class="header-actions">
-        <button class="header-btn" onclick="window.location.href='upload.html'">+ Students</button>
+        <button class="header-btn" onclick="window.location.href='manage-menu.html'">Menu</button>
+        <button class="header-btn" onclick="window.location.href='upload.html'">Students</button>
         <button class="header-btn" onclick="staffLogout()">Log out</button>
       </div>
     </header>
 
     <main class="page-content">
+
+      <!-- Verify a confirmation code the student reads out -->
+      <div class="verify-bar">
+        <input type="text" id="verifyInput" class="input-field" placeholder="Enter code to verify"
+               maxlength="5" style="text-transform:uppercase; letter-spacing:3px; font-weight:700; text-align:center;" />
+        <button class="btn btn-primary" id="verifyBtn" style="width:auto; padding:12px 18px;">Verify</button>
+      </div>
+      <p id="verifyResult" class="verify-result hidden"></p>
 
       <!-- Pending and collected counts -->
       <div class="stat-row">
@@ -150,9 +159,11 @@
     function buildOrderCard(order, isToday) {
       const card = document.createElement('div');
       const classes = ['order-card', 'card'];
-      if (order.collected) classes.push('collected');
-      if (isToday && !order.collected) classes.push('new-today');
+      if (order.cancelled) classes.push('cancelled-order');
+      else if (order.collected) classes.push('collected');
+      if (isToday && !order.collected && !order.cancelled) classes.push('new-today');
       card.className = classes.join(' ');
+      card.id = `order-${order.code}`; // lets the verify box scroll to this card
 
       const itemsList = order.items.map(i => `${i.name} × ${i.quantity}`).join(', ');
       const breakLabel = order.break_time === 'morning_tea' ? 'Morning Tea' : 'Lunch';
@@ -161,10 +172,24 @@
         hour: '2-digit', minute: '2-digit'
       });
 
-      // NEW badge only on today's pending orders
-      const newBadge = (isToday && !order.collected)
+      // NEW badge only on today's active (pending) orders
+      const newBadge = (isToday && !order.collected && !order.cancelled)
         ? '<span class="new-badge">New</span>'
         : '';
+
+      // The action/status area depends on the order's state
+      let actionHtml;
+      if (order.cancelled) {
+        actionHtml = `<div class="cancelled-badge">Cancelled${order.cancelled_by ? ' by ' + order.cancelled_by : ''}</div>`;
+      } else if (order.collected) {
+        actionHtml = `<div class="collected-badge">Collected</div>`;
+      } else {
+        actionHtml = `
+          <div class="order-actions">
+            <button class="btn btn-success collected-btn" onclick="markCollected(${order.id})">Mark Collected</button>
+            <button class="btn-cancel-order" onclick="cancelOrder(${order.id})">Cancel</button>
+          </div>`;
+      }
 
       card.innerHTML = `
         <div class="order-card-header">
@@ -177,18 +202,20 @@
         </div>
 
         <div class="order-items">${itemsList}</div>
-        <div class="order-total">$${order.total.toFixed(2)}</div>
 
-        ${order.collected
-          ? `<div class="collected-badge">Collected</div>`
-          : `<button class="btn btn-success collected-btn" onclick="markCollected(${order.id})">Mark Collected</button>`
-        }
+        <div class="order-card-footer">
+          <span class="order-code">Code <strong>${order.code || '—'}</strong></span>
+          <span class="order-total">$${order.total.toFixed(2)}</span>
+        </div>
+
+        ${actionHtml}
       `;
       return card;
     }
 
     function updateStats(orders) {
-      const pending = orders.filter(o => !o.collected).length;
+      // Pending = not collected and not cancelled
+      const pending = orders.filter(o => !o.collected && !o.cancelled).length;
       const collected = orders.filter(o => o.collected).length;
       document.getElementById('pendingCount').textContent = pending;
       document.getElementById('collectedCount').textContent = collected;
@@ -199,6 +226,55 @@
       await fetch(`/api/orders/${orderId}/collected`, { method: 'PUT' });
       loadOrders();
     }
+
+    // Cancel an order from the staff side (after confirming)
+    async function cancelOrder(orderId) {
+      if (!confirm('Cancel this order? The student will see it was cancelled.')) return;
+      await fetch(`/api/orders/${orderId}/cancel`, { method: 'PUT' });
+      loadOrders();
+    }
+
+    // ─── Verify a confirmation code a student reads out ───
+    async function verifyCode() {
+      const code = document.getElementById('verifyInput').value.trim().toUpperCase();
+      const resultEl = document.getElementById('verifyResult');
+      if (!code) return;
+
+      const response = await fetch(`/api/order/${code}`);
+      if (!response.ok) {
+        resultEl.className = 'verify-result bad';
+        resultEl.textContent = `✗ No order found for code ${code}`;
+        resultEl.classList.remove('hidden');
+        return;
+      }
+
+      const order = await response.json();
+      const items = order.items.map(i => `${i.name} × ${i.quantity}`).join(', ');
+
+      // Decide the verdict shown to staff
+      let verdict;
+      if (order.cancelled) verdict = `CANCELLED${order.cancelled_by ? ' by ' + order.cancelled_by : ''}`;
+      else if (order.collected) verdict = 'ALREADY COLLECTED';
+      else verdict = 'VALID — not yet collected';
+
+      resultEl.className = (order.cancelled || order.collected) ? 'verify-result bad' : 'verify-result good';
+      resultEl.innerHTML =
+        `${(order.cancelled || order.collected) ? '✗' : '✓'} <strong>${code}</strong> · ${order.school_number} · ${items} · $${order.total.toFixed(2)} — ${verdict}`;
+      resultEl.classList.remove('hidden');
+
+      // Scroll to and flash the matching card if it is currently shown
+      const card = document.getElementById(`order-${code}`);
+      if (card) {
+        card.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        card.classList.add('flash');
+        setTimeout(() => card.classList.remove('flash'), 1600);
+      }
+    }
+
+    document.getElementById('verifyBtn').addEventListener('click', verifyCode);
+    document.getElementById('verifyInput').addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') verifyCode();
+    });
 
     // Initial load + auto-refresh every 10 seconds so staff don't have to refresh
     loadOrders();

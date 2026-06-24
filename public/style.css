@@ -550,6 +550,30 @@ body {
 
 .receipt { text-align: left; }
 
+/* Confirmation code box (success + status pages) */
+.code-box {
+  background: var(--green-tint);
+  border: 1.5px dashed var(--green);
+  border-radius: var(--radius);
+  padding: 16px;
+  text-align: center;
+}
+.code-label {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 1.5px;
+  font-weight: 700;
+  color: var(--success-text);
+}
+.code-value {
+  font-size: 38px;
+  font-weight: 800;
+  letter-spacing: 6px;
+  color: var(--green-dark);
+  font-family: 'SF Mono', ui-monospace, Menlo, monospace;
+  margin-top: 4px;
+}
+
 /* ─────────────────────────────────────────────────────────────────────────
    Staff dashboard
    ───────────────────────────────────────────────────────────────────────── */
@@ -765,6 +789,80 @@ body {
 }
 
 .collected-btn { margin-top: 2px; padding: 12px; }
+
+/* Verify-code bar on the staff dashboard */
+.verify-bar {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+.verify-bar .input-field { flex: 1; }
+
+.verify-result {
+  font-size: 13px;
+  padding: 10px 12px;
+  border-radius: var(--radius);
+  margin-bottom: 16px;
+  line-height: 1.4;
+}
+.verify-result.good { background: var(--green-tint); color: var(--success-text); border-left: 3px solid var(--green); }
+.verify-result.bad  { background: var(--red-tint); color: var(--error-text); border-left: 3px solid var(--red); }
+
+/* Order code + total footer row on each card */
+.order-card-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.order-code {
+  font-size: 12px;
+  color: var(--text-muted);
+  letter-spacing: 0.3px;
+}
+.order-code strong {
+  font-family: 'SF Mono', ui-monospace, Menlo, monospace;
+  color: var(--text);
+  letter-spacing: 1px;
+}
+
+/* Cancel button + collected/cancel action row */
+.order-actions { display: flex; gap: 8px; }
+.order-actions .collected-btn { flex: 1; margin-top: 0; }
+.btn-cancel-order {
+  padding: 12px 16px;
+  border: 1.5px solid var(--red);
+  background: #fff;
+  color: var(--red);
+  border-radius: var(--radius);
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+.btn-cancel-order:hover { background: var(--red-tint); }
+
+/* Cancelled order card */
+.order-card.cancelled-order { opacity: 0.6; background: #fbf6f6; }
+.cancelled-badge {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--error-text);
+  text-align: center;
+  padding: 10px;
+  background: var(--red-tint);
+  border-radius: 9px;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+/* Flash highlight when a verified code matches a visible card */
+.order-card.flash {
+  animation: flashHighlight 1.6s ease;
+}
+@keyframes flashHighlight {
+  0%, 100% { box-shadow: var(--shadow-sm); }
+  30%      { box-shadow: 0 0 0 3px var(--green); }
+}
 
 .empty-msg {
   text-align: center;

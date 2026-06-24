@@ -32,6 +32,30 @@ db.exec(`
   );
 `);
 
+/**
+ * Add a column to a table only if it doesn't already exist.
+ * Lets us upgrade an existing database without wiping the data inside it.
+ */
+function addColumnIfMissing(table, column, definition) {
+  // pragma_table_info lists the existing columns of the table
+  const columns = db.prepare(`PRAGMA table_info(${table})`).all();
+  const exists = columns.some(c => c.name === column);
+  if (!exists) {
+    db.exec(`ALTER TABLE ${table} ADD COLUMN ${column} ${definition}`);
+    console.log(`Migration: added ${table}.${column}`);
+  }
+}
+
+// ── Migrations for the new features ──
+// daily_limit: max of this item a student may order per day (0 = no limit)
+addColumnIfMissing('menu_items', 'daily_limit', 'INTEGER NOT NULL DEFAULT 0');
+// code: short confirmation code shown to the student and verified by staff
+addColumnIfMissing('orders', 'code', 'TEXT');
+// cancelled: 0 = active, 1 = cancelled
+addColumnIfMissing('orders', 'cancelled', 'INTEGER NOT NULL DEFAULT 0');
+// cancelled_by: who cancelled it ('student' or 'staff') — used to notify
+addColumnIfMissing('orders', 'cancelled_by', 'TEXT');
+
 // Seed students if the table is empty
 const studentCount = db.prepare('SELECT COUNT(*) as count FROM students').get();
 if (studentCount.count === 0) {
@@ -53,20 +77,20 @@ if (studentCount.count === 0) {
 const menuCount = db.prepare('SELECT COUNT(*) as count FROM menu_items').get();
 if (menuCount.count === 0) {
   const insertItem = db.prepare(
-    'INSERT INTO menu_items (name, price, available) VALUES (?, ?, ?)'
+    'INSERT INTO menu_items (name, price, available, daily_limit) VALUES (?, ?, ?, ?)'
   );
 
-  // Menu items — available is 1 (true) or 0 (false)
-  insertItem.run('Meat Pie', 3.50, 1);
-  insertItem.run('Sausage Roll', 3.00, 1);
-  insertItem.run('Ham Sandwich', 4.00, 1);
-  insertItem.run('Cheese & Vegemite Roll', 3.50, 1);
-  insertItem.run('Chicken Wrap', 5.00, 1);
-  insertItem.run('Hot Dog', 3.00, 1);
-  insertItem.run('Fruit Cup', 2.50, 1);
-  insertItem.run('Chocolate Milk', 2.00, 1);
-  insertItem.run('Water Bottle', 1.50, 1);
-  insertItem.run('Muesli Bar', 1.50, 0); // sold out example
+  // Menu items — available is 1/0, daily_limit is max per student per day (0 = no limit)
+  insertItem.run('Meat Pie', 3.50, 1, 1);          // 1 pie per day
+  insertItem.run('Sausage Roll', 3.00, 1, 2);
+  insertItem.run('Ham Sandwich', 4.00, 1, 0);
+  insertItem.run('Cheese & Vegemite Roll', 3.50, 1, 0);
+  insertItem.run('Chicken Wrap', 5.00, 1, 1);
+  insertItem.run('Hot Dog', 3.00, 1, 2);
+  insertItem.run('Fruit Cup', 2.50, 1, 0);
+  insertItem.run('Chocolate Milk', 2.00, 1, 0);
+  insertItem.run('Water Bottle', 1.50, 1, 0);
+  insertItem.run('Muesli Bar', 1.50, 0, 0); // sold out example
 
   console.log('Seeded menu_items table');
 }
