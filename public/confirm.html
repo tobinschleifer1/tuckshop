@@ -3,8 +3,30 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Tuck Shop — Confirm Order</title>
+  <title>Tuck Shop — Review Order</title>
   <link rel="stylesheet" href="style.css" />
+  <style>
+    /* Editable review rows */
+    .review-item {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 10px 0;
+      border-bottom: 1px solid var(--border);
+    }
+    .review-item:last-child { border-bottom: none; }
+    .review-info { flex: 1; min-width: 0; }
+    .review-name { font-size: 14px; font-weight: 600; }
+    .review-each { font-size: 12px; color: var(--text-muted); }
+    .review-qty { display: flex; align-items: center; gap: 8px; }
+    .review-qty .qty-btn { width: 30px; height: 30px; font-size: 17px; }
+    .review-line { font-weight: 700; font-size: 14px; min-width: 54px; text-align: right; }
+    .review-remove {
+      background: none; border: none; color: var(--red);
+      font-size: 20px; cursor: pointer; padding: 0 4px; line-height: 1;
+    }
+    .empty-cart { text-align: center; color: var(--text-muted); padding: 20px 0; }
+  </style>
 </head>
 <body>
   <div class="app-shell">
@@ -29,6 +51,7 @@
 
         <hr class="divider-line" />
 
+        <!-- Editable item list — change quantity or remove items here -->
         <div id="confirmItems"></div>
 
         <hr class="divider-line" />
@@ -43,7 +66,7 @@
       <p id="orderError" class="error-msg hidden" style="margin-top: 14px;"></p>
 
       <div style="display: flex; flex-direction: column; gap: 10px; margin-top: 14px;">
-        <button id="confirmBtn" class="btn btn-success">Place Order</button>
+        <button id="confirmBtn" class="btn btn-success">Continue to payment</button>
         <button id="cancelBtn" class="btn btn-ghost">Back to menu</button>
       </div>
     </main>
@@ -51,7 +74,7 @@
 
   <script>
     const student = JSON.parse(sessionStorage.getItem('student'));
-    const cart = JSON.parse(sessionStorage.getItem('cart'));
+    let cart = JSON.parse(sessionStorage.getItem('cart'));
     const breakTime = sessionStorage.getItem('break');
 
     if (!student || !cart || !breakTime) window.location.href = 'login.html';
@@ -61,32 +84,84 @@
     document.getElementById('confirmBreak').textContent =
       breakTime === 'morning_tea' ? 'Morning Tea' : 'Lunch';
 
-    // Build the itemised list
     const itemsContainer = document.getElementById('confirmItems');
-    let total = 0;
+    const confirmBtn = document.getElementById('confirmBtn');
 
-    Object.values(cart).forEach(item => {
-      const lineTotal = item.price * item.quantity;
-      total += lineTotal;
+    // Render the editable item list and the running total
+    function renderItems() {
+      itemsContainer.innerHTML = '';
+      const entries = Object.values(cart);
 
-      const row = document.createElement('div');
-      row.className = 'confirm-row';
-      row.innerHTML = `
-        <span>${item.name} × ${item.quantity}</span>
-        <span>$${lineTotal.toFixed(2)}</span>
-      `;
-      itemsContainer.appendChild(row);
-    });
+      if (entries.length === 0) {
+        itemsContainer.innerHTML = '<div class="empty-cart">Your order is empty.</div>';
+        document.getElementById('confirmTotal').textContent = '$0.00';
+        confirmBtn.disabled = true;
+        confirmBtn.style.opacity = '0.5';
+        return;
+      }
 
-    document.getElementById('confirmTotal').textContent = `$${total.toFixed(2)}`;
+      confirmBtn.disabled = false;
+      confirmBtn.style.opacity = '1';
 
-    // Place order — POST to API
-    document.getElementById('confirmBtn').addEventListener('click', async () => {
+      let total = 0;
+      entries.forEach(item => {
+        const lineTotal = item.price * item.quantity;
+        total += lineTotal;
+
+        const row = document.createElement('div');
+        row.className = 'review-item';
+        row.innerHTML = `
+          <div class="review-info">
+            <div class="review-name">${item.name}</div>
+            <div class="review-each">$${item.price.toFixed(2)} each</div>
+          </div>
+          <div class="review-qty">
+            <button class="qty-btn" onclick="changeQty(${item.id}, -1)">−</button>
+            <span>${item.quantity}</span>
+            <button class="qty-btn" onclick="changeQty(${item.id}, 1)">+</button>
+          </div>
+          <div class="review-line">$${lineTotal.toFixed(2)}</div>
+          <button class="review-remove" onclick="removeItem(${item.id})" title="Remove">×</button>
+        `;
+        itemsContainer.appendChild(row);
+      });
+
+      document.getElementById('confirmTotal').textContent = `$${total.toFixed(2)}`;
+    }
+
+    // Change an item's quantity (delta is +1 or -1); removing the last one deletes it
+    function changeQty(id, delta) {
+      if (!cart[id]) return;
+      cart[id].quantity += delta;
+      if (cart[id].quantity <= 0) delete cart[id];
+      saveAndRender();
+    }
+
+    // Remove an item entirely
+    function removeItem(id) {
+      delete cart[id];
+      saveAndRender();
+    }
+
+    // Persist the edited cart so the menu and payment pages stay in sync
+    function saveAndRender() {
+      sessionStorage.setItem('cart', JSON.stringify(cart));
+      renderItems();
+    }
+
+    renderItems();
+
+    // Continue to payment — places the order (unpaid) then goes to the payment page
+    confirmBtn.addEventListener('click', async () => {
+      const items = Object.values(cart);
+      if (items.length === 0) return;
+
+      const total = items.reduce((sum, i) => sum + i.price * i.quantity, 0);
       const orderPayload = {
         school_number: student.school_number,
         break_time: breakTime,
-        items: Object.values(cart),
-        total: total
+        items,
+        total,
       };
 
       const errorEl = document.getElementById('orderError');
@@ -96,17 +171,16 @@
         const response = await fetch('/api/order', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(orderPayload)
+          body: JSON.stringify(orderPayload),
         });
         const result = await response.json();
 
         if (response.ok && result.success) {
-          // Save the order plus its confirmation code for the success page
-          orderPayload.code = result.code;
-          sessionStorage.setItem('lastOrder', JSON.stringify(orderPayload));
-          window.location.href = 'success.html';
+          // Order placed (unpaid). Clear the cart and head to payment.
+          sessionStorage.removeItem('cart');
+          sessionStorage.removeItem('break');
+          window.location.href = `payment.html?code=${result.code}`;
         } else {
-          // Show the reason (e.g. a daily limit was reached)
           errorEl.textContent = result.error || 'Could not place your order.';
           errorEl.classList.remove('hidden');
         }

@@ -824,6 +824,16 @@ body {
   color: var(--text);
   letter-spacing: 1px;
 }
+.unpaid-tag {
+  color: var(--warning-text);
+  background: var(--warning-bg);
+  font-weight: 700;
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  padding: 1px 6px;
+  border-radius: 4px;
+}
 
 /* Cancel button + collected/cancel action row */
 .order-actions { display: flex; gap: 8px; }

@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Tuck Shop — Payment</title>
+  <link rel="stylesheet" href="style.css" />
+  <style>
+    .pay-amount {
+      text-align: center;
+      font-size: 40px;
+      font-weight: 800;
+      color: var(--red);
+      letter-spacing: -1px;
+      margin: 4px 0;
+    }
+    .pay-sub { text-align: center; font-size: 13px; color: var(--text-muted); }
+    .demo-note {
+      background: var(--warning-bg);
+      color: var(--warning-text);
+      font-size: 12px;
+      padding: 10px 12px;
+      border-radius: var(--radius);
+      text-align: center;
+    }
+  </style>
+</head>
+<body>
+  <div class="app-shell">
+    <header class="top-bar">
+      <h1>Payment</h1>
+    </header>
+
+    <main class="page-content">
+      <div class="card" style="display:flex; flex-direction:column; gap:12px;">
+        <div class="pay-sub">Amount due</div>
+        <div class="pay-amount" id="payAmount">$0.00</div>
+
+        <hr class="divider-line" />
+        <div id="payItems"></div>
+        <hr class="divider-line" />
+
+        <p id="payError" class="error-msg hidden"></p>
+
+        <button class="btn btn-success" id="payBtn">Pay now</button>
+        <button class="btn btn-ghost" id="cancelLink">Cancel and view order</button>
+
+        <!-- Shown only when there's no real Stripe key configured -->
+        <div class="demo-note hidden" id="demoNote">
+          Demo mode — no real payment is taken. Add a Stripe key to enable live payments.
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <script>
+    // The order code comes in via the URL (?code=...)
+    const code = new URLSearchParams(window.location.search).get('code');
+    if (!code) window.location.href = 'login.html';
+
+    const payBtn = document.getElementById('payBtn');
+    const payError = document.getElementById('payError');
+    let order = null;
+
+    // Load the order so we can show the amount and items
+    async function loadOrder() {
+      const response = await fetch(`/api/order/${code}`);
+      if (!response.ok) {
+        window.location.href = 'login.html';
+        return;
+      }
+      order = await response.json();
+
+      // If it's already paid, skip straight to the receipt
+      if (order.paid) {
+        window.location.href = `success.html?code=${code}`;
+        return;
+      }
+
+      document.getElementById('payAmount').textContent = `$${order.total.toFixed(2)}`;
+
+      const itemsEl = document.getElementById('payItems');
+      itemsEl.innerHTML = '';
+      order.items.forEach(item => {
+        const row = document.createElement('div');
+        row.className = 'confirm-row';
+        row.innerHTML = `
+          <span>${item.name} × ${item.quantity}</span>
+          <span>$${(item.price * item.quantity).toFixed(2)}</span>
+        `;
+        itemsEl.appendChild(row);
+      });
+    }
+
+    // Pay button — uses real Stripe if configured, otherwise the demo flow
+    payBtn.addEventListener('click', async () => {
+      payError.classList.add('hidden');
+      payBtn.disabled = true;
+      payBtn.textContent = 'Processing…';
+
+      try {
+        const response = await fetch('/api/checkout', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ code }),
+        });
+        const result = await response.json();
+
+        if (result.url) {
+          // Real Stripe — go to the hosted checkout page
+          window.location.href = result.url;
+        } else if (result.demo) {
+          // Demo mode — mark the order paid then show the receipt
+          document.getElementById('demoNote').classList.remove('hidden');
+          await fetch(`/api/order/${code}/pay`, { method: 'POST' });
+          window.location.href = `success.html?code=${code}`;
+        } else {
+          payError.textContent = result.error || 'Could not start payment.';
+          payError.classList.remove('hidden');
+          payBtn.disabled = false;
+          payBtn.textContent = 'Pay now';
+        }
+      } catch (err) {
+        console.error('Payment error:', err);
+        payError.textContent = 'Something went wrong starting payment.';
+        payError.classList.remove('hidden');
+        payBtn.disabled = false;
+        payBtn.textContent = 'Pay now';
+      }
+    });
+
+    // Cancel goes to the order status page (where they can cancel the order)
+    document.getElementById('cancelLink').addEventListener('click', () => {
+      window.location.href = `order-status.html?code=${code}`;
+    });
+
+    loadOrder();
+  </script>
+</body>
+</html>

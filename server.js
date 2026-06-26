@@ -29,6 +29,13 @@ app.use(express.static('public'));
 // This placeholder is only used if no .env is set up.
 const STAFF_PASSWORD = process.env.STAFF_PASSWORD || 'changeme';
 
+// Stripe is optional. If a secret key is set in .env the real Stripe Checkout
+// is used; otherwise the app falls back to a built-in "demo" checkout so the
+// payment flow still works without an account. To connect a real Stripe
+// account, just add STRIPE_SECRET_KEY to the .env file.
+const STRIPE_SECRET_KEY = process.env.STRIPE_SECRET_KEY || '';
+const stripe = STRIPE_SECRET_KEY ? require('stripe')(STRIPE_SECRET_KEY) : null;
+
 // ─── STAFF AUTH ──────────────────────────────────────────────────────────────
 
 /**
@@ -384,6 +391,7 @@ app.get('/api/orders', (req, res) => {
     items: JSON.parse(order.items),
     collected: order.collected === 1,
     cancelled: order.cancelled === 1,
+    paid: order.paid === 1,
   }));
 
   res.json(orders);
@@ -406,6 +414,7 @@ app.get('/api/order/:code', (req, res) => {
     items: JSON.parse(order.items),
     collected: order.collected === 1,
     cancelled: order.cancelled === 1,
+    paid: order.paid === 1,
   });
 });
 
@@ -449,6 +458,84 @@ app.put('/api/order/:code/cancel', (req, res) => {
 
   db.prepare("UPDATE orders SET cancelled = 1, cancelled_by = 'student' WHERE id = ?")
     .run(order.id);
+  res.json({ success: true });
+});
+
+// ─── PAYMENT ROUTES ──────────────────────────────────────────────────────────
+
+/**
+ * Start checkout for an order identified by its confirmation code.
+ *
+ * If a real Stripe key is configured, this creates a Stripe Checkout Session
+ * and returns its URL for the browser to redirect to. If not, it returns
+ * { demo: true } so the frontend can run the built-in demo payment instead.
+ */
+app.post('/api/checkout', async (req, res) => {
+  const { code } = req.body;
+  const order = db.prepare('SELECT * FROM orders WHERE code = ?').get((code || '').toUpperCase());
+
+  if (!order) {
+    return res.status(404).json({ error: 'No order found with that code' });
+  }
+  if (order.paid === 1) {
+    return res.status(400).json({ error: 'This order is already paid' });
+  }
+
+  // No Stripe configured — tell the frontend to use the demo flow
+  if (!stripe) {
+    return res.json({ demo: true });
+  }
+
+  try {
+    // Build Stripe line items from the order's items
+    const items = JSON.parse(order.items);
+    const lineItems = items.map(item => ({
+      quantity: item.quantity,
+      price_data: {
+        currency: 'nzd',
+        product_data: { name: item.name },
+        unit_amount: Math.round(item.price * 100), // Stripe works in cents
+      },
+    }));
+
+    const origin = `${req.protocol}://${req.get('host')}`;
+    const session = await stripe.checkout.sessions.create({
+      mode: 'payment',
+      line_items: lineItems,
+      // On success Stripe redirects here, which marks the order paid
+      success_url: `${origin}/api/payment-success?code=${order.code}`,
+      cancel_url: `${origin}/payment.html?code=${order.code}`,
+    });
+
+    res.json({ url: session.url });
+  } catch (err) {
+    console.error('Stripe checkout error:', err);
+    res.status(500).json({ error: 'Could not start payment' });
+  }
+});
+
+/**
+ * Where Stripe redirects after a successful payment.
+ * Marks the order paid and forwards the student to the success page.
+ */
+app.get('/api/payment-success', (req, res) => {
+  const code = (req.query.code || '').toUpperCase();
+  db.prepare('UPDATE orders SET paid = 1 WHERE code = ?').run(code);
+  res.redirect(`/success.html?code=${code}`);
+});
+
+/**
+ * Mark an order as paid via the built-in demo checkout (no real Stripe).
+ */
+app.post('/api/order/:code/pay', (req, res) => {
+  const code = req.params.code.toUpperCase();
+  const order = db.prepare('SELECT * FROM orders WHERE code = ?').get(code);
+
+  if (!order) {
+    return res.status(404).json({ error: 'No order found with that code' });
+  }
+
+  db.prepare('UPDATE orders SET paid = 1 WHERE code = ?').run(code);
   res.json({ success: true });
 });
 

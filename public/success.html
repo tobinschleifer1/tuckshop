@@ -5,9 +5,22 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Tuck Shop — Order Confirmed</title>
   <link rel="stylesheet" href="style.css" />
+  <style>
+    .paid-badge {
+      display: inline-block;
+      font-size: 12px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      padding: 5px 12px;
+      border-radius: 999px;
+    }
+    .paid-badge.paid   { background: var(--green-tint); color: var(--success-text); }
+    .paid-badge.unpaid { background: var(--warning-bg); color: var(--warning-text); }
+  </style>
 </head>
 <body>
-  <!-- Success page — shown after an order is placed successfully -->
+  <!-- Success page — reached after payment, loads the order by its code -->
 
   <div class="app-shell">
     <header class="top-bar">
@@ -17,10 +30,12 @@
     <main class="page-content centered">
       <div class="card success-card">
 
-        <!-- Green tick icon -->
         <div class="success-icon">✓</div>
         <h2 class="success-heading">You're all set!</h2>
         <p class="success-sub">Show this code at the tuck shop to collect your order.</p>
+
+        <!-- Paid / unpaid status -->
+        <div id="paidBadge"></div>
 
         <!-- Confirmation code — the student shows this to staff -->
         <div class="code-box">
@@ -30,11 +45,10 @@
 
         <hr class="divider-line" />
 
-        <!-- Full receipt -->
         <div class="receipt">
           <div class="confirm-row">
-            <span class="confirm-label">Name</span>
-            <span id="receiptName"></span>
+            <span class="confirm-label">School No.</span>
+            <span id="receiptSchoolNo"></span>
           </div>
           <div class="confirm-row">
             <span class="confirm-label">Break</span>
@@ -42,10 +56,7 @@
           </div>
 
           <hr class="divider-line" />
-
-          <!-- Itemised list -->
           <div id="receiptItems"></div>
-
           <hr class="divider-line" />
 
           <div class="confirm-row total-row">
@@ -61,46 +72,52 @@
   </div>
 
   <script>
-    // Load the last order from sessionStorage to build the receipt
-    const student = JSON.parse(sessionStorage.getItem('student'));
-    const order = JSON.parse(sessionStorage.getItem('lastOrder'));
+    // The order code is in the URL (?code=...) after the payment redirect
+    const code = new URLSearchParams(window.location.search).get('code');
+    if (!code) window.location.href = 'login.html';
 
-    if (!student || !order) {
-      window.location.href = 'login.html';
+    // Load the order from the server and build the receipt
+    async function loadOrder() {
+      const response = await fetch(`/api/order/${code}`);
+      if (!response.ok) {
+        window.location.href = 'login.html';
+        return;
+      }
+      const order = await response.json();
+
+      document.getElementById('codeValue').textContent = order.code;
+      document.getElementById('receiptSchoolNo').textContent = order.school_number;
+      document.getElementById('receiptBreak').textContent =
+        order.break_time === 'morning_tea' ? 'Morning Tea' : 'Lunch';
+
+      // Paid / unpaid badge
+      const badge = document.getElementById('paidBadge');
+      badge.innerHTML = order.paid
+        ? '<span class="paid-badge paid">✓ Paid</span>'
+        : '<span class="paid-badge unpaid">Awaiting payment</span>';
+
+      // Itemised list
+      const itemsContainer = document.getElementById('receiptItems');
+      itemsContainer.innerHTML = '';
+      order.items.forEach(item => {
+        const row = document.createElement('div');
+        row.className = 'confirm-row';
+        row.innerHTML = `
+          <span>${item.name} × ${item.quantity}</span>
+          <span>$${(item.price * item.quantity).toFixed(2)}</span>
+        `;
+        itemsContainer.appendChild(row);
+      });
+
+      document.getElementById('receiptTotal').textContent = `$${order.total.toFixed(2)}`;
+
+      // "Check or cancel" jumps to the status page for this code
+      document.getElementById('manageBtn').addEventListener('click', () => {
+        window.location.href = `order-status.html?code=${order.code}`;
+      });
     }
 
-    // Fill in student details
-    document.getElementById('receiptName').textContent = student.name;
-    document.getElementById('receiptBreak').textContent =
-      order.break_time === 'morning_tea' ? 'Morning Tea' : 'Lunch';
-
-    // Itemised list
-    const itemsContainer = document.getElementById('receiptItems');
-    order.items.forEach(item => {
-      const row = document.createElement('div');
-      row.className = 'confirm-row';
-      row.innerHTML = `
-        <span>${item.name} × ${item.quantity}</span>
-        <span>$${(item.price * item.quantity).toFixed(2)}</span>
-      `;
-      itemsContainer.appendChild(row);
-    });
-
-    // Total in red as per design spec
-    document.getElementById('receiptTotal').textContent = `$${order.total.toFixed(2)}`;
-
-    // Show the confirmation code the student needs to collect their order
-    document.getElementById('codeValue').textContent = order.code || '—';
-
-    // "Check or cancel" jumps to the status page pre-filled with this code
-    document.getElementById('manageBtn').addEventListener('click', () => {
-      window.location.href = `order-status.html?code=${order.code || ''}`;
-    });
-
-    // Clear the cart from session so a fresh order starts clean
-    sessionStorage.removeItem('cart');
-    sessionStorage.removeItem('break');
-    sessionStorage.removeItem('lastOrder');
+    loadOrder();
   </script>
 </body>
 </html>

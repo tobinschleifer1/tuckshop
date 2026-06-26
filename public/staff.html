@@ -204,7 +204,7 @@
         <div class="order-items">${itemsList}</div>
 
         <div class="order-card-footer">
-          <span class="order-code">Code <strong>${order.code || '—'}</strong></span>
+          <span class="order-code">Code <strong>${order.code || '—'}</strong>${order.paid ? '' : ' · <span class="unpaid-tag">Unpaid</span>'}</span>
           <span class="order-total">$${order.total.toFixed(2)}</span>
         </div>
 

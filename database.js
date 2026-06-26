@@ -55,6 +55,8 @@ addColumnIfMissing('orders', 'code', 'TEXT');
 addColumnIfMissing('orders', 'cancelled', 'INTEGER NOT NULL DEFAULT 0');
 // cancelled_by: who cancelled it ('student' or 'staff') — used to notify
 addColumnIfMissing('orders', 'cancelled_by', 'TEXT');
+// paid: 0 = awaiting payment, 1 = paid (via Stripe or demo checkout)
+addColumnIfMissing('orders', 'paid', 'INTEGER NOT NULL DEFAULT 0');
 
 // Seed students if the table is empty
 const studentCount = db.prepare('SELECT COUNT(*) as count FROM students').get();
