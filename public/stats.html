@@ -1,0 +1,296 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Tuck Shop — Sales Stats</title>
+  <link rel="stylesheet" href="style.css" />
+  <script>
+    // Guard — only logged-in staff can see the stats
+    if (sessionStorage.getItem('staffLoggedIn') !== 'true') {
+      window.location.href = 'staff-login.html';
+    }
+  </script>
+  <style>
+    .range-tabs { display: flex; gap: 6px; margin-bottom: 16px; background:#fff;
+      padding:4px; border-radius:var(--radius); border:1px solid var(--border); box-shadow:var(--shadow-sm); }
+    .range-btn { flex:1; padding:10px; border:none; background:transparent; border-radius:9px;
+      font-size:13px; font-weight:600; color:var(--text-soft); cursor:pointer; }
+    .range-btn.active { background:var(--red); color:#fff; }
+
+    .chart-card { margin-bottom:16px; padding:18px 16px 14px; }
+    .chart-title { font-size:15px; font-weight:700; margin-bottom:4px; }
+    .chart-sub { font-size:12px; color:var(--text-muted); margin-bottom:14px; }
+    .chart-wrap { position:relative; height:280px; }
+
+    .summary-row { display:grid; grid-template-columns:1fr 1fr 1fr; gap:10px; margin-bottom:16px; }
+    .sum-card { background:#fff; border:1px solid var(--border); border-radius:var(--radius);
+      padding:14px 8px; text-align:center; }
+    .sum-num { font-size:22px; font-weight:800; color:var(--red); letter-spacing:-0.5px; line-height:1.1; }
+    .sum-num.green { color:var(--green); }
+    .sum-label { font-size:10px; text-transform:uppercase; letter-spacing:1px; color:var(--text-muted);
+      font-weight:700; margin-top:3px; }
+
+    .item-select { width:100%; padding:12px; border:1.5px solid var(--border-strong);
+      border-radius:var(--radius); font-size:15px; background:#fff; margin-bottom:12px; }
+  </style>
+</head>
+<body>
+  <div class="app-shell">
+    <header class="top-bar">
+      <h1>Sales Stats</h1>
+      <div class="header-actions">
+        <button class="header-btn" onclick="window.location.href='staff.html'">← Dashboard</button>
+        <button class="header-btn" onclick="staffLogout()">Log out</button>
+      </div>
+    </header>
+
+    <main class="page-content">
+
+      <!-- Date range selector -->
+      <div class="range-tabs">
+        <button class="range-btn" data-days="30">30 days</button>
+        <button class="range-btn" data-days="45">45 days</button>
+        <button class="range-btn active" data-days="90">90 days</button>
+      </div>
+
+      <!-- Summary stat cards -->
+      <div class="summary-row">
+        <div class="sum-card"><div class="sum-num" id="sumSales">0</div><div class="sum-label">Sales</div></div>
+        <div class="sum-card"><div class="sum-num green" id="sumRevenue">$0</div><div class="sum-label">Revenue</div></div>
+        <div class="sum-card"><div class="sum-num" id="sumAvg">$0</div><div class="sum-label">Avg / day</div></div>
+      </div>
+
+      <!-- Daily sales + revenue combo chart -->
+      <div class="card chart-card">
+        <div class="chart-title">Revenue &amp; sales</div>
+        <div class="chart-sub">Green area = revenue ($) · Red bars = daily order volume</div>
+        <div class="chart-wrap"><canvas id="dailyChart"></canvas></div>
+      </div>
+
+      <!-- Per-item revenue chart -->
+      <div class="card chart-card">
+        <div class="chart-title">Revenue by item</div>
+        <div class="chart-sub">Daily revenue ($) for the selected item</div>
+        <select class="item-select" id="itemSelect"></select>
+        <div class="chart-wrap"><canvas id="itemChart"></canvas></div>
+      </div>
+
+    </main>
+  </div>
+
+  <!-- Chart.js — third-party charting library -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+  <script>
+    function staffLogout() {
+      sessionStorage.removeItem('staffLoggedIn');
+      window.location.href = 'login.html';
+    }
+
+    const RED = '#8B1A1A';
+    const GREEN = '#1B4D2E';
+
+    // Global Chart.js look-and-feel — fonts, tooltips, hover
+    Chart.defaults.font.family = "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif";
+    Chart.defaults.font.size = 11;
+    Chart.defaults.color = '#8A8A8A';
+    Chart.defaults.plugins.tooltip.backgroundColor = '#1A1A1A';
+    Chart.defaults.plugins.tooltip.padding = 10;
+    Chart.defaults.plugins.tooltip.cornerRadius = 8;
+    Chart.defaults.plugins.tooltip.titleFont = { weight: '700', size: 12 };
+    Chart.defaults.plugins.tooltip.bodyFont = { size: 12 };
+    Chart.defaults.plugins.tooltip.displayColors = false;
+
+    let currentDays = 90;
+    let stats = null;          // latest data from the server
+    let dailyChart = null;     // Chart instances
+    let itemChart = null;
+
+    // Show a date label like "12 Jun" but keep it short
+    function shortLabel(dateStr) {
+      const d = new Date(dateStr);
+      return d.toLocaleDateString('en-NZ', { day: 'numeric', month: 'short' });
+    }
+
+    // Build a top-to-bottom gradient fill from a hex colour.
+    // Scriptable so it can use the chart's plotting area once it exists.
+    function vGradient(hex, topAlpha, bottomAlpha) {
+      return (context) => {
+        const { ctx, chartArea } = context.chart;
+        if (!chartArea) return hexA(hex, topAlpha); // first paint, area not ready
+        const g = ctx.createLinearGradient(0, chartArea.top, 0, chartArea.bottom);
+        g.addColorStop(0, hexA(hex, topAlpha));
+        g.addColorStop(1, hexA(hex, bottomAlpha));
+        return g;
+      };
+    }
+
+    // Turn a hex colour + alpha into an rgba() string
+    function hexA(hex, alpha) {
+      const n = parseInt(hex.slice(1), 16);
+      const r = (n >> 16) & 255, g = (n >> 8) & 255, b = n & 255;
+      return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+    }
+
+    // Fetch stats for the chosen range and (re)draw everything
+    async function loadStats(days) {
+      currentDays = days;
+      const response = await fetch(`/api/stats?days=${days}`);
+      stats = await response.json();
+
+      updateSummary();
+      drawDailyChart();
+      buildItemDropdown();
+      drawItemChart();
+    }
+
+    // Top summary cards
+    function updateSummary() {
+      const totalSales = stats.daily.reduce((s, d) => s + d.count, 0);
+      const totalRev = stats.daily.reduce((s, d) => s + d.revenue, 0);
+      document.getElementById('sumSales').textContent = totalSales;
+      document.getElementById('sumRevenue').textContent = `$${totalRev.toFixed(0)}`;
+      document.getElementById('sumAvg').textContent = `$${(totalRev / stats.days).toFixed(0)}`;
+    }
+
+    // Combo chart: bars for order count, line for revenue (two y-axes)
+    function drawDailyChart() {
+      const labels = stats.dates.map(shortLabel);
+      const counts = stats.daily.map(d => d.count);
+      const revenue = stats.daily.map(d => d.revenue);
+
+      if (dailyChart) dailyChart.destroy();
+      // Crypto-style layout: revenue is the main smooth area line, and sales
+      // sit at the bottom as slim "volume" bars (their axis max is inflated so
+      // they only ever fill the lower part of the chart).
+      const maxCount = Math.max(1, ...counts);
+      // Give the revenue line $10 of headroom so it never sits at the very top
+      const maxRevenue = Math.max(0, ...revenue) + 10;
+
+      dailyChart = new Chart(document.getElementById('dailyChart'), {
+        data: {
+          labels,
+          datasets: [
+            {
+              type: 'line', label: 'Revenue', data: revenue, yAxisID: 'y', order: 1,
+              borderColor: GREEN, borderWidth: 2.5,
+              backgroundColor: vGradient(GREEN, 0.22, 0.0), fill: true,
+              tension: 0.4, pointRadius: 0, pointHoverRadius: 5,
+              pointHoverBackgroundColor: GREEN, pointHoverBorderColor: '#fff', pointHoverBorderWidth: 2,
+            },
+            {
+              type: 'bar', label: 'Sales', data: counts, yAxisID: 'yVol', order: 2,
+              backgroundColor: hexA(RED, 0.45), hoverBackgroundColor: RED,
+              borderRadius: 2, borderSkipped: false, maxBarThickness: 10,
+            },
+          ],
+        },
+        options: {
+          responsive: true, maintainAspectRatio: false,
+          layout: { padding: { top: 10, left: 2, right: 2 } },
+          interaction: { mode: 'index', intersect: false },
+          scales: {
+            x: {
+              ticks: { maxTicksLimit: 6, maxRotation: 0, autoSkip: true, color: '#B0AAA0', padding: 6 },
+              grid: { display: false }, border: { display: false },
+            },
+            // Revenue axis — the only visible axis, on the left
+            y: {
+              position: 'left', beginAtZero: true, max: maxRevenue,
+              grid: { color: 'rgba(0,0,0,0.04)' }, border: { display: false },
+              ticks: { callback: (v) => '$' + v, color: '#B0AAA0', maxTicksLimit: 5, padding: 6 },
+            },
+            // Hidden volume axis — inflated max keeps the bars short at the bottom
+            yVol: { position: 'right', beginAtZero: true, max: maxCount * 4, display: false },
+          },
+          plugins: {
+            legend: {
+              position: 'top', align: 'end',
+              labels: { boxWidth: 8, boxHeight: 8, usePointStyle: true, padding: 16,
+                        font: { size: 11, weight: '600' }, color: '#5B5B5B' },
+            },
+            tooltip: {
+              callbacks: {
+                label: (c) => c.dataset.label === 'Revenue'
+                  ? `  Revenue   $${c.parsed.y.toFixed(2)}`
+                  : `  Sales   ${c.parsed.y} order${c.parsed.y === 1 ? '' : 's'}`,
+              },
+            },
+          },
+        },
+      });
+    }
+
+    // Fill the item dropdown from the items that sold
+    function buildItemDropdown() {
+      const select = document.getElementById('itemSelect');
+      const prev = select.value;
+      select.innerHTML = '';
+      if (stats.items.length === 0) {
+        select.innerHTML = '<option>No item sales yet</option>';
+        return;
+      }
+      stats.items.forEach(it => {
+        const opt = document.createElement('option');
+        opt.value = it.id;
+        opt.textContent = it.name;
+        select.appendChild(opt);
+      });
+      // Keep the previous selection if it still exists
+      if (prev && stats.series[prev]) select.value = prev;
+    }
+
+    // Line chart of the selected item's daily revenue
+    function drawItemChart() {
+      const id = document.getElementById('itemSelect').value;
+      const points = stats.series[id] || [];
+      const labels = points.map(p => shortLabel(p.date));
+      const data = points.map(p => p.revenue);
+
+      if (itemChart) itemChart.destroy();
+      itemChart = new Chart(document.getElementById('itemChart'), {
+        type: 'line',
+        data: {
+          labels,
+          datasets: [{
+            label: 'Revenue', data,
+            borderColor: GREEN, borderWidth: 2.5,
+            backgroundColor: vGradient(GREEN, 0.22, 0.0),
+            fill: true, tension: 0.4,
+            pointRadius: 0, pointHoverRadius: 5,
+            pointHoverBackgroundColor: GREEN, pointHoverBorderColor: '#fff', pointHoverBorderWidth: 2,
+          }],
+        },
+        options: {
+          responsive: true, maintainAspectRatio: false,
+          layout: { padding: { top: 6 } },
+          interaction: { mode: 'index', intersect: false },
+          scales: {
+            x: { ticks: { maxTicksLimit: 7, maxRotation: 0, autoSkip: true }, grid: { display: false }, border: { display: false } },
+            y: {
+              beginAtZero: true, grid: { color: 'rgba(0,0,0,0.05)' }, border: { display: false },
+              ticks: { callback: (v) => '$' + v },
+            },
+          },
+          plugins: {
+            legend: { display: false },
+            tooltip: { callbacks: { label: (c) => `Revenue: $${c.parsed.y.toFixed(2)}` } },
+          },
+        },
+      });
+    }
+
+    // --- Wire up the controls ---
+    document.querySelectorAll('.range-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        document.querySelectorAll('.range-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        loadStats(Number(btn.dataset.days));
+      });
+    });
+    document.getElementById('itemSelect').addEventListener('change', drawItemChart);
+
+    loadStats(90);
+  </script>
+</body>
+</html>

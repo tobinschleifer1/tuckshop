@@ -539,6 +539,86 @@ app.post('/api/order/:code/pay', (req, res) => {
   res.json({ success: true });
 });
 
+// ─── STATS / ANALYTICS ROUTES ────────────────────────────────────────────────
+
+/**
+ * Aggregated sales stats for the staff analytics page.
+ *
+ * Query: ?days=30 (default 30, e.g. 30 / 45 / 90).
+ * Returns, for the last N days:
+ *   - daily: [{ date, count, revenue }]  one entry per day, zero-filled
+ *   - items: [{ id, name }]              every item that sold in the range
+ *   - series: { itemId: [{ date, revenue }] }  per-item daily revenue
+ *
+ * Cancelled orders are excluded since they aren't real sales.
+ */
+app.get('/api/stats', (req, res) => {
+  // Clamp the range to something sensible (1–365 days)
+  const days = Math.min(Math.max(parseInt(req.query.days, 10) || 30, 1), 365);
+
+  // Build a continuous list of date strings, oldest first
+  const dates = [];
+  const today = new Date();
+  for (let i = days - 1; i >= 0; i -= 1) {
+    const d = new Date(today);
+    d.setDate(today.getDate() - i);
+    dates.push(d.toISOString().slice(0, 10)); // YYYY-MM-DD
+  }
+  const startDate = dates[0];
+
+  // Pull every non-cancelled order from the range — these count as sales
+  const orders = db
+    .prepare('SELECT items, total, date FROM orders WHERE cancelled = 0 AND substr(date, 1, 10) >= ?')
+    .all(startDate);
+
+  // Prepare a zero-filled bucket for every day so the chart has no gaps
+  const dailyMap = {};
+  dates.forEach(d => { dailyMap[d] = { date: d, count: 0, revenue: 0 }; });
+
+  const itemRevenue = {}; // itemId -> { date -> revenue }
+  const itemNames = {};   // itemId -> name
+
+  // Walk the orders and add each one to the right day and item buckets
+  orders.forEach(order => {
+    const day = order.date.slice(0, 10);
+    if (!dailyMap[day]) return;
+
+    dailyMap[day].count += 1;
+    dailyMap[day].revenue += order.total;
+
+    for (const it of JSON.parse(order.items)) {
+      itemNames[it.id] = it.name;
+      if (!itemRevenue[it.id]) itemRevenue[it.id] = {};
+      itemRevenue[it.id][day] = (itemRevenue[it.id][day] || 0) + it.price * it.quantity;
+    }
+  });
+
+  // Convert the day buckets into an ordered array
+  const daily = dates.map(d => dailyMap[d]);
+
+  // Include every current menu item too, so the dropdown always reflects the
+  // live menu: a newly added item shows up even before it has any sales, and a
+  // deleted item still keeps its past sales from the order history. Current
+  // items use their current name (in case an item was renamed).
+  const menuItems = db.prepare('SELECT id, name FROM menu_items').all();
+  menuItems.forEach(m => { itemNames[m.id] = m.name; });
+
+  // Build the item dropdown list and a continuous revenue series for each item
+  const items = Object.keys(itemNames)
+    .map(id => ({ id: Number(id), name: itemNames[id] }))
+    .sort((a, b) => a.name.localeCompare(b.name));
+
+  const series = {};
+  items.forEach(it => {
+    series[it.id] = dates.map(d => ({
+      date: d,
+      revenue: (itemRevenue[it.id] && itemRevenue[it.id][d]) || 0,
+    }));
+  });
+
+  res.json({ days, dates, daily, items, series });
+});
+
 // ─── START SERVER ──────────────────────────────────────────────────────────
 
 app.listen(PORT, () => {
