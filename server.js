@@ -539,6 +539,135 @@ app.post('/api/order/:code/pay', (req, res) => {
   res.json({ success: true });
 });
 
+// ─── STUDENT HISTORY & DAILY ORDER ───────────────────────────────────────────
+
+/**
+ * All past orders for one student, newest first. (Student order history)
+ */
+app.get('/api/student/:schoolNumber/orders', (req, res) => {
+  const orders = db
+    .prepare('SELECT * FROM orders WHERE school_number = ? ORDER BY date DESC')
+    .all(req.params.schoolNumber);
+
+  res.json(orders.map(o => ({
+    ...o,
+    items: JSON.parse(o.items),
+    collected: o.collected === 1,
+    cancelled: o.cancelled === 1,
+    paid: o.paid === 1,
+  })));
+});
+
+/**
+ * Check a saved daily order's items against the live menu.
+ * Drops items staff have deleted and flags ones that are sold out, building a
+ * list of notifications so the student knows what changed.
+ */
+function reconcileDaily(savedItems) {
+  const menu = db.prepare('SELECT * FROM menu_items').all();
+  const menuById = {};
+  menu.forEach(m => { menuById[m.id] = m; });
+
+  const items = [];
+  const notifications = [];
+
+  savedItems.forEach(si => {
+    const m = menuById[si.id];
+    if (!m) {
+      // Staff removed this item from the menu entirely
+      notifications.push(`${si.name} is no longer on the menu and was removed.`);
+      return;
+    }
+    let status = 'ok';
+    if (m.available !== 1) {
+      status = 'sold_out';
+      notifications.push(`${m.name} is currently unavailable.`);
+    }
+    // Use the current name/price in case staff changed them
+    items.push({ id: m.id, name: m.name, price: m.price, quantity: si.quantity, status });
+  });
+
+  return { items, notifications };
+}
+
+/**
+ * Get a student's saved daily order, reconciled against the current menu.
+ */
+app.get('/api/student/:schoolNumber/daily', (req, res) => {
+  const row = db.prepare('SELECT * FROM daily_orders WHERE school_number = ?').get(req.params.schoolNumber);
+
+  if (!row) {
+    return res.json({ exists: false, break_time: 'morning_tea', items: [], notifications: [] });
+  }
+
+  const { items, notifications } = reconcileDaily(JSON.parse(row.items));
+  res.json({ exists: true, break_time: row.break_time, items, notifications });
+});
+
+/**
+ * Save (or update) a student's daily order.
+ */
+app.post('/api/student/:schoolNumber/daily', (req, res) => {
+  const { break_time, items } = req.body;
+  if (!break_time || !Array.isArray(items)) {
+    return res.status(400).json({ error: 'Missing break time or items' });
+  }
+
+  // Store only the fields we need
+  const itemsJson = JSON.stringify(
+    items.map(i => ({ id: i.id, name: i.name, price: i.price, quantity: i.quantity }))
+  );
+
+  // Upsert: one standing daily order per student
+  db.prepare(`
+    INSERT INTO daily_orders (school_number, break_time, items, updated_at)
+    VALUES (?, ?, ?, ?)
+    ON CONFLICT(school_number) DO UPDATE SET
+      break_time = excluded.break_time,
+      items = excluded.items,
+      updated_at = excluded.updated_at
+  `).run(req.params.schoolNumber, break_time, itemsJson, new Date().toISOString());
+
+  res.json({ success: true });
+});
+
+/**
+ * Place today's order from the saved daily order.
+ * Sold-out or removed items are skipped and reported back so the student is
+ * told which items were unavailable. If nothing is available, no order is made.
+ */
+app.post('/api/student/:schoolNumber/daily/place', (req, res) => {
+  const sn = req.params.schoolNumber;
+  const row = db.prepare('SELECT * FROM daily_orders WHERE school_number = ?').get(sn);
+  if (!row) {
+    return res.status(404).json({ error: 'No daily order saved yet' });
+  }
+
+  const { items } = reconcileDaily(JSON.parse(row.items));
+  const available = items.filter(i => i.status === 'ok');
+  const skipped = items.filter(i => i.status !== 'ok').map(i => i.name);
+
+  // Nothing available — cancel the daily order for today and tell them why
+  if (available.length === 0) {
+    return res.json({
+      placed: false,
+      skipped,
+      error: 'None of your daily items are available today, so no order was placed.',
+    });
+  }
+
+  const orderItems = available.map(i => ({ id: i.id, name: i.name, price: i.price, quantity: i.quantity }));
+  const total = orderItems.reduce((s, i) => s + i.price * i.quantity, 0);
+  const code = generateOrderCode();
+  const date = new Date().toISOString();
+
+  const result = db.prepare(
+    'INSERT INTO orders (school_number, break_time, items, total, date, collected, code, cancelled, paid) VALUES (?, ?, ?, ?, ?, 0, ?, 0, 0)'
+  ).run(sn, row.break_time, JSON.stringify(orderItems), total, date, code);
+
+  res.json({ placed: true, orderId: result.lastInsertRowid, code, total, skipped });
+});
+
 // ─── STATS / ANALYTICS ROUTES ────────────────────────────────────────────────
 
 /**

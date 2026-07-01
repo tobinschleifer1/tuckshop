@@ -11,7 +11,8 @@
     <header class="top-bar">
       <h1>Menu</h1>
       <div class="header-actions">
-        <span id="studentInfo" class="student-info"></span>
+        <button class="header-btn" onclick="window.location.href='daily.html'">Daily</button>
+        <button class="header-btn" onclick="window.location.href='history.html'">My Orders</button>
         <button class="header-btn" onclick="studentLogout()">Log out</button>
       </div>
     </header>
@@ -46,8 +47,6 @@
     // Redirect to login if no student in session
     const student = JSON.parse(sessionStorage.getItem('student'));
     if (!student) window.location.href = 'login.html';
-
-    document.getElementById('studentInfo').textContent = student.name;
 
     // Log out — clear the student's session and return to the login page
     function studentLogout() {

@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Tuck Shop — Daily Order</title>
+  <link rel="stylesheet" href="style.css" />
+  <style>
+    .info-banner { background:#EAF1FB; color:#1E477E; border-left:3px solid #2563EB;
+      padding:10px 12px; border-radius:var(--radius); font-size:13px; margin-bottom:14px; }
+    .warn-banner { background:var(--warning-bg); color:var(--warning-text); border-left:3px solid #C77800;
+      padding:10px 12px; border-radius:var(--radius); font-size:13px; margin-bottom:14px; }
+    .warn-banner ul { margin:4px 0 0 16px; }
+    .result-banner { background:var(--green-tint); color:var(--success-text); border-left:3px solid var(--green);
+      padding:12px 14px; border-radius:var(--radius); font-size:14px; margin-bottom:14px; }
+    .result-banner .code { font-weight:800; letter-spacing:2px; }
+    .result-actions { display:flex; gap:8px; margin-top:10px; }
+    .result-actions .btn { padding:10px; font-size:13px; }
+  </style>
+</head>
+<body>
+  <div class="app-shell">
+    <header class="top-bar">
+      <h1>Daily Order</h1>
+      <div class="header-actions">
+        <button class="header-btn" onclick="window.location.href='menu.html'">← Menu</button>
+        <button class="header-btn" onclick="studentLogout()">Log out</button>
+      </div>
+    </header>
+
+    <main class="page-content">
+
+      <div class="info-banner">
+        Set up your usual order once, then place it in a tap each day. The menu
+        below always shows what's currently available.
+      </div>
+
+      <!-- Reconciliation warnings (sold out / removed items) -->
+      <div class="warn-banner hidden" id="warnBanner"></div>
+
+      <!-- Result after placing -->
+      <div class="result-banner hidden" id="resultBanner"></div>
+
+      <!-- Break toggle -->
+      <div class="break-toggle">
+        <button class="toggle-btn active" data-break="morning_tea">Morning Tea</button>
+        <button class="toggle-btn" data-break="lunch">Lunch</button>
+      </div>
+
+      <div id="menuGrid" class="menu-grid"></div>
+    </main>
+
+    <footer class="order-footer" id="footer">
+      <div class="footer-total-wrap">
+        <div class="footer-total-label">Daily total</div>
+        <div class="footer-total" id="dailyTotal">$0.00</div>
+      </div>
+      <div style="display:flex; gap:8px;">
+        <button class="btn btn-ghost" id="saveBtn" style="width:auto; padding:12px 16px;">Save</button>
+        <button class="btn btn-primary" id="placeBtn" style="width:auto; padding:12px 16px;">Place today</button>
+      </div>
+    </footer>
+  </div>
+
+  <script>
+    function studentLogout() {
+      sessionStorage.removeItem('student');
+      window.location.href = 'login.html';
+    }
+
+    const student = JSON.parse(sessionStorage.getItem('student'));
+    if (!student) window.location.href = 'login.html';
+
+    let daily = {};                 // id -> { id, name, price, quantity }
+    let selectedBreak = 'morning_tea';
+    const sn = student.school_number;
+
+    // Break toggle
+    document.querySelectorAll('.toggle-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        document.querySelectorAll('.toggle-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        selectedBreak = btn.dataset.break;
+      });
+    });
+
+    // Load the LIVE menu (auto-reflects any items staff add or remove)
+    async function loadMenu() {
+      const res = await fetch('/api/menu');
+      const items = await res.json();
+      const grid = document.getElementById('menuGrid');
+      grid.innerHTML = '';
+      items.forEach(item => {
+        const card = document.createElement('div');
+        card.className = `menu-card card ${item.available ? '' : 'sold-out'}`;
+        card.id = `card-${item.id}`;
+        card.innerHTML = `
+          <div class="item-name">${item.name}</div>
+          <div class="item-price">$${item.price.toFixed(2)}</div>
+          ${item.available
+            ? `<div class="qty-controls">
+                <button class="qty-btn" onclick="changeQty(${item.id}, ${item.price}, '${item.name.replace(/'/g, "\\'")}', -1)">−</button>
+                <span id="qty-${item.id}" class="qty-display">0</span>
+                <button class="qty-btn" onclick="changeQty(${item.id}, ${item.price}, '${item.name.replace(/'/g, "\\'")}', 1)">+</button>
+              </div>`
+            : `<div class="sold-out-label">Sold Out</div>`}
+        `;
+        grid.appendChild(card);
+      });
+    }
+
+    // Load the saved daily order and pre-fill the quantities + any warnings
+    async function loadDaily() {
+      const res = await fetch(`/api/student/${sn}/daily`);
+      const data = await res.json();
+
+      selectedBreak = data.break_time;
+      document.querySelectorAll('.toggle-btn').forEach(b =>
+        b.classList.toggle('active', b.dataset.break === selectedBreak));
+
+      daily = {};
+      data.items.forEach(i => {
+        daily[i.id] = { id: i.id, name: i.name, price: i.price, quantity: i.quantity };
+        const qtyEl = document.getElementById(`qty-${i.id}`);
+        const cardEl = document.getElementById(`card-${i.id}`);
+        if (qtyEl) qtyEl.textContent = i.quantity;
+        if (cardEl) cardEl.classList.add('has-items');
+      });
+
+      // Show warnings about sold-out / removed items
+      const warn = document.getElementById('warnBanner');
+      if (data.notifications.length > 0) {
+        warn.innerHTML = 'Heads up:<ul>' + data.notifications.map(n => `<li>${n}</li>`).join('') + '</ul>';
+        warn.classList.remove('hidden');
+      } else {
+        warn.classList.add('hidden');
+      }
+
+      updateTotal();
+    }
+
+    function changeQty(id, price, name, delta) {
+      if (!daily[id]) daily[id] = { id, name, price, quantity: 0 };
+      daily[id].quantity += delta;
+      if (daily[id].quantity < 0) daily[id].quantity = 0;
+      if (daily[id].quantity === 0) delete daily[id];
+
+      const qtyEl = document.getElementById(`qty-${id}`);
+      const cardEl = document.getElementById(`card-${id}`);
+      if (qtyEl) qtyEl.textContent = daily[id] ? daily[id].quantity : 0;
+      if (cardEl) cardEl.classList.toggle('has-items', !!daily[id]);
+      updateTotal();
+    }
+
+    function updateTotal() {
+      const total = Object.values(daily).reduce((s, i) => s + i.price * i.quantity, 0);
+      document.getElementById('dailyTotal').textContent = `$${total.toFixed(2)}`;
+    }
+
+    // Save the daily order template
+    document.getElementById('saveBtn').addEventListener('click', async () => {
+      await fetch(`/api/student/${sn}/daily`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ break_time: selectedBreak, items: Object.values(daily) }),
+      });
+      const btn = document.getElementById('saveBtn');
+      btn.textContent = 'Saved ✓';
+      setTimeout(() => { btn.textContent = 'Save'; }, 1500);
+    });
+
+    // Place today's order from the saved daily order
+    document.getElementById('placeBtn').addEventListener('click', async () => {
+      // Save first so the latest edits are placed
+      await fetch(`/api/student/${sn}/daily`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ break_time: selectedBreak, items: Object.values(daily) }),
+      });
+
+      const res = await fetch(`/api/student/${sn}/daily/place`, { method: 'POST' });
+      const result = await res.json();
+      const banner = document.getElementById('resultBanner');
+
+      if (!result.placed) {
+        banner.className = 'warn-banner';
+        banner.textContent = result.error || 'Could not place your daily order.';
+        banner.classList.remove('hidden');
+        return;
+      }
+
+      // Success — show the code, any skipped items, and next actions
+      let html = `Daily order placed! Your code is <span class="code">${result.code}</span>.`;
+      if (result.skipped && result.skipped.length > 0) {
+        html += `<br>Skipped (unavailable today): ${result.skipped.join(', ')}.`;
+      }
+      html += `<div class="result-actions">
+          <button class="btn btn-success" onclick="window.location.href='payment.html?code=${result.code}'">Pay now</button>
+          <button class="btn btn-ghost" onclick="window.location.href='order-status.html?code=${result.code}'">View order</button>
+        </div>`;
+      banner.className = 'result-banner';
+      banner.innerHTML = html;
+      banner.classList.remove('hidden');
+      banner.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    });
+
+    // Load menu first, then overlay the saved daily order
+    (async () => { await loadMenu(); await loadDaily(); })();
+  </script>
+</body>
+</html>

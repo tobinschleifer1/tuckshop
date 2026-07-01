@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Tuck Shop — My Orders</title>
+  <link rel="stylesheet" href="style.css" />
+  <style>
+    .summary-row { display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:16px; }
+    .sum-card { background:#fff; border:1px solid var(--border); border-radius:var(--radius);
+      padding:16px 10px; text-align:center; }
+    .sum-num { font-size:24px; font-weight:800; color:var(--red); letter-spacing:-0.5px; line-height:1.1; }
+    .sum-num.green { color:var(--green); }
+    .sum-label { font-size:10px; text-transform:uppercase; letter-spacing:1px; color:var(--text-muted);
+      font-weight:700; margin-top:3px; }
+
+    .chart-card { margin-bottom:16px; padding:18px 16px 14px; }
+    .chart-head { display:flex; align-items:center; justify-content:space-between; margin-bottom:12px; }
+    .chart-title { font-size:15px; font-weight:700; }
+    .chart-toggle { display:flex; gap:4px; background:#f2ede6; border-radius:8px; padding:3px; }
+    .chart-toggle button { border:none; background:transparent; font-size:12px; font-weight:600;
+      padding:5px 10px; border-radius:6px; cursor:pointer; color:var(--text-soft); }
+    .chart-toggle button.active { background:#fff; color:var(--red); box-shadow:var(--shadow-sm); }
+    .chart-wrap { position:relative; height:250px; }
+
+    .order-hist { background:#fff; border:1px solid var(--border); border-radius:var(--radius);
+      padding:12px 14px; margin-bottom:8px; }
+    .order-hist-top { display:flex; justify-content:space-between; align-items:center; margin-bottom:4px; }
+    .order-hist-date { font-size:12px; color:var(--text-muted); }
+    .order-hist-total { font-weight:800; color:var(--red); }
+    .order-hist-items { font-size:14px; color:var(--text-soft); }
+    .status-pill { font-size:10px; font-weight:700; padding:3px 8px; border-radius:999px;
+      text-transform:uppercase; letter-spacing:0.5px; }
+    .status-pill.collected { background:var(--green-tint); color:var(--success-text); }
+    .status-pill.cancelled { background:var(--red-tint); color:var(--error-text); }
+    .status-pill.pending { background:#FFF3CD; color:#7A5800; }
+  </style>
+</head>
+<body>
+  <div class="app-shell">
+    <header class="top-bar">
+      <h1>My Orders</h1>
+      <div class="header-actions">
+        <button class="header-btn" onclick="window.location.href='menu.html'">← Menu</button>
+        <button class="header-btn" onclick="studentLogout()">Log out</button>
+      </div>
+    </header>
+
+    <main class="page-content">
+
+      <!-- Summary -->
+      <div class="summary-row">
+        <div class="sum-card"><div class="sum-num green" id="totalSpent">$0</div><div class="sum-label">Total spent</div></div>
+        <div class="sum-card"><div class="sum-num" id="orderCount">0</div><div class="sum-label">Orders</div></div>
+      </div>
+
+      <!-- Most ordered chart with bar/pie toggle -->
+      <div class="card chart-card">
+        <div class="chart-head">
+          <div class="chart-title">Most ordered items</div>
+          <div class="chart-toggle">
+            <button id="barBtn" class="active">Bar</button>
+            <button id="pieBtn">Pie</button>
+          </div>
+        </div>
+        <div class="chart-wrap"><canvas id="itemsChart"></canvas></div>
+      </div>
+
+      <!-- Order list -->
+      <div class="date-group-header">Order history</div>
+      <div id="historyList"></div>
+
+    </main>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+  <script>
+    function studentLogout() {
+      sessionStorage.removeItem('student');
+      sessionStorage.removeItem('cart');
+      sessionStorage.removeItem('break');
+      window.location.href = 'login.html';
+    }
+
+    const student = JSON.parse(sessionStorage.getItem('student'));
+    if (!student) window.location.href = 'login.html';
+
+    Chart.defaults.font.family = "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif";
+    Chart.defaults.color = '#8A8A8A';
+
+    // A palette for the pie slices
+    const PALETTE = ['#8B1A1A','#1B4D2E','#C77800','#2563EB','#6554C0','#0F766E','#B91C1C','#4D7C0F'];
+
+    let chart = null;
+    let chartType = 'bar';
+    let topItems = { labels: [], data: [] };
+
+    async function load() {
+      const res = await fetch(`/api/student/${student.school_number}/orders`);
+      const orders = await res.json();
+
+      // Only count orders that weren't cancelled
+      const valid = orders.filter(o => !o.cancelled);
+
+      // Total spent + order count
+      const totalSpent = valid.reduce((s, o) => s + o.total, 0);
+      document.getElementById('totalSpent').textContent = `$${totalSpent.toFixed(2)}`;
+      document.getElementById('orderCount').textContent = valid.length;
+
+      // Aggregate quantity per item name
+      const counts = {};
+      valid.forEach(o => o.items.forEach(i => {
+        counts[i.name] = (counts[i.name] || 0) + i.quantity;
+      }));
+      const sorted = Object.entries(counts).sort((a, b) => b[1] - a[1]).slice(0, 8);
+      topItems.labels = sorted.map(e => e[0]);
+      topItems.data = sorted.map(e => e[1]);
+
+      drawChart();
+      renderList(orders);
+    }
+
+    // Draw the most-ordered chart as either a bar or a pie
+    function drawChart() {
+      if (chart) chart.destroy();
+      const isBar = chartType === 'bar';
+      chart = new Chart(document.getElementById('itemsChart'), {
+        type: isBar ? 'bar' : 'pie',
+        data: {
+          labels: topItems.labels,
+          datasets: [{
+            label: 'Quantity ordered',
+            data: topItems.data,
+            backgroundColor: isBar ? '#8B1A1A' : PALETTE,
+            borderRadius: isBar ? 6 : 0,
+            borderWidth: isBar ? 0 : 2,
+            borderColor: '#fff',
+          }],
+        },
+        options: {
+          responsive: true, maintainAspectRatio: false,
+          scales: isBar ? {
+            x: { grid: { display: false }, border: { display: false } },
+            y: { beginAtZero: true, ticks: { precision: 0 }, grid: { color: 'rgba(0,0,0,0.05)' }, border: { display: false } },
+          } : {},
+          plugins: {
+            legend: { display: !isBar, position: 'right', labels: { boxWidth: 12, font: { size: 11 } } },
+            tooltip: { callbacks: { label: (c) => ` ${c.label}: ${isBar ? c.parsed.y : c.parsed} ordered` } },
+          },
+        },
+      });
+    }
+
+    // The past-orders list
+    function renderList(orders) {
+      const list = document.getElementById('historyList');
+      if (orders.length === 0) {
+        list.innerHTML = '<p class="empty-msg">No orders yet. Place your first one from the menu.</p>';
+        return;
+      }
+      list.innerHTML = '';
+      orders.forEach(o => {
+        const status = o.cancelled ? 'cancelled' : (o.collected ? 'collected' : 'pending');
+        const date = new Date(o.date).toLocaleDateString('en-NZ', { day: 'numeric', month: 'short', year: 'numeric' });
+        const items = o.items.map(i => `${i.name} × ${i.quantity}`).join(', ');
+        const card = document.createElement('div');
+        card.className = 'order-hist';
+        card.innerHTML = `
+          <div class="order-hist-top">
+            <span class="order-hist-date">${date}</span>
+            <span class="status-pill ${status}">${status}</span>
+          </div>
+          <div class="order-hist-items">${items}</div>
+          <div class="order-hist-top" style="margin-top:6px;">
+            <span style="font-size:12px;color:var(--text-muted);">Code ${o.code || '—'}</span>
+            <span class="order-hist-total">$${o.total.toFixed(2)}</span>
+          </div>
+        `;
+        list.appendChild(card);
+      });
+    }
+
+    document.getElementById('barBtn').addEventListener('click', () => {
+      chartType = 'bar';
+      document.getElementById('barBtn').classList.add('active');
+      document.getElementById('pieBtn').classList.remove('active');
+      drawChart();
+    });
+    document.getElementById('pieBtn').addEventListener('click', () => {
+      chartType = 'pie';
+      document.getElementById('pieBtn').classList.add('active');
+      document.getElementById('barBtn').classList.remove('active');
+      drawChart();
+    });
+
+    load();
+  </script>
+</body>
+</html>

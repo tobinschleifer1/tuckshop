@@ -58,6 +58,17 @@ addColumnIfMissing('orders', 'cancelled_by', 'TEXT');
 // paid: 0 = awaiting payment, 1 = paid (via Stripe or demo checkout)
 addColumnIfMissing('orders', 'paid', 'INTEGER NOT NULL DEFAULT 0');
 
+// A student's saved "daily order" — one standing order per student that they
+// can review and place each day. Items are stored as JSON, like orders.
+db.exec(`
+  CREATE TABLE IF NOT EXISTS daily_orders (
+    school_number TEXT PRIMARY KEY,
+    break_time TEXT NOT NULL,
+    items TEXT NOT NULL,
+    updated_at TEXT NOT NULL
+  );
+`);
+
 // Seed students if the table is empty
 const studentCount = db.prepare('SELECT COUNT(*) as count FROM students').get();
 if (studentCount.count === 0) {
